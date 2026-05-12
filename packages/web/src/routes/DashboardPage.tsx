@@ -339,7 +339,7 @@ export function DashboardPage(): React.ReactElement {
         />
 
         {actionError && (
-          <div className="rounded-md border border-error/30 bg-error/5 px-4 py-3 text-sm text-error">
+          <div className="rounded-none border border-error/30 bg-error/5 px-4 py-3 text-sm text-error">
             {actionError}
           </div>
         )}
@@ -424,7 +424,7 @@ export function DashboardPage(): React.ReactElement {
                   onChange={(e): void => {
                     setPageSize(Number(e.target.value));
                   }}
-                  className="rounded-md border border-border bg-surface-elevated px-2 py-1 text-xs text-text-primary focus:border-primary focus:outline-none"
+                  className="rounded-none border border-border bg-surface-elevated px-2 py-1 text-xs text-text-primary focus:border-primary focus:outline-none"
                 >
                   {PAGE_SIZE_OPTIONS.map(size => (
                     <option key={size} value={size}>
@@ -439,7 +439,7 @@ export function DashboardPage(): React.ReactElement {
                     setPage(page - 1);
                   }}
                   disabled={page === 0}
-                  className="rounded-md border border-border bg-surface-elevated px-3 py-1 text-xs text-text-secondary transition-colors hover:bg-surface disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="rounded-none border border-border bg-surface-elevated px-3 py-1 text-xs text-text-secondary transition-colors hover:bg-surface disabled:bg-[#f5f5f5] disabled:border-[#cccccc] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
@@ -451,7 +451,7 @@ export function DashboardPage(): React.ReactElement {
                     setPage(page + 1);
                   }}
                   disabled={!hasMore}
-                  className="rounded-md border border-border bg-surface-elevated px-3 py-1 text-xs text-text-secondary transition-colors hover:bg-surface disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="rounded-none border border-border bg-surface-elevated px-3 py-1 text-xs text-text-secondary transition-colors hover:bg-surface disabled:bg-[#f5f5f5] disabled:border-[#cccccc] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed"
                 >
                   Next
                 </button>

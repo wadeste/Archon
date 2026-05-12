@@ -64,24 +64,26 @@ function StepProgress({
   if (!hasProgress && !currentTool) return null;
 
   return (
-    <div className="rounded-md bg-surface-elevated px-3 py-2 space-y-1">
+    <div className="rounded-none border-[3px] border-black bg-[#f0f0f0] px-3 py-2 space-y-1">
       {hasProgress && (
-        <div className="flex items-center gap-2 text-sm text-text-primary">
-          <span className="font-medium">
+        <div className="flex items-center gap-2 font-sans text-sm text-black">
+          <span className="font-semibold">
             {`${String(completedCount)}${totalNodes ? `/${String(totalNodes)}` : ''} nodes`}
           </span>
-          {stepName && <span className="text-text-secondary">{stepName}</span>}
+          {stepName && <span className="text-[var(--text-secondary)]">{stepName}</span>}
         </div>
       )}
       {currentTool && (
         <div className="flex items-center gap-2">
           {currentTool.status === 'running' && (
-            <div className="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+            <div className="h-3.5 w-3.5 shrink-0 border-[2px] border-black border-t-transparent animate-spin" />
           )}
           <span
             className={cn(
               'text-sm font-mono truncate',
-              currentTool.status === 'running' ? 'text-primary' : 'text-text-secondary'
+              currentTool.status === 'running'
+                ? 'text-black font-bold'
+                : 'text-[var(--text-secondary)]'
             )}
           >
             {currentTool.status === 'running'
@@ -115,20 +117,26 @@ function isValidNodeCounts(value: unknown): value is NodeCounts {
 function NodeCountsSummary({ counts }: { counts: NodeCounts }): React.ReactElement {
   const hasFailures = counts.failed > 0 || counts.skipped > 0;
   return (
-    <div className="flex items-center gap-1.5 text-xs">
+    <div className="flex items-center gap-1.5 font-sans text-xs">
       {hasFailures ? (
-        <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0" />
+        <AlertTriangle className="h-3.5 w-3.5 text-[#ffa500] shrink-0" />
       ) : (
-        <CheckCircle className="h-3.5 w-3.5 text-success shrink-0" />
+        <CheckCircle className="h-3.5 w-3.5 text-[#008000] shrink-0" />
       )}
-      <span className={hasFailures ? 'text-warning' : 'text-success'}>
+      <span
+        className={hasFailures ? 'text-[#ffa500] font-semibold' : 'text-[#008000] font-semibold'}
+      >
         {String(counts.completed)}/{String(counts.total)} nodes succeeded
       </span>
       {counts.failed > 0 && (
-        <span className="text-text-secondary">&middot; {String(counts.failed)} failed</span>
+        <span className="text-[var(--text-secondary)]">
+          &middot; {String(counts.failed)} failed
+        </span>
       )}
       {counts.skipped > 0 && (
-        <span className="text-text-secondary">&middot; {String(counts.skipped)} skipped</span>
+        <span className="text-[var(--text-secondary)]">
+          &middot; {String(counts.skipped)} skipped
+        </span>
       )}
     </div>
   );
@@ -170,31 +178,31 @@ export function WorkflowRunCard({
     : null;
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-4 space-y-3">
+    <div className="rounded-none border-[5px] border-black bg-white p-4 space-y-3">
       {/* Header: status dot + name + badge + elapsed */}
       <div className="flex items-center gap-2">
         <div
           className={cn(
-            'h-2.5 w-2.5 shrink-0 rounded-full',
-            run.status === 'running' && 'bg-primary animate-pulse',
-            run.status === 'paused' && 'bg-warning animate-pulse',
-            run.status === 'pending' && 'bg-text-tertiary'
+            'h-2.5 w-2.5 shrink-0 border-[2px] rounded-none',
+            run.status === 'running' && 'border-black bg-black animate-pulse',
+            run.status === 'paused' && 'border-[#ffa500] bg-[#ffa500] animate-pulse',
+            run.status === 'pending' && 'border-[#cccccc] bg-white'
           )}
         />
-        <span className="font-medium text-sm text-text-primary truncate flex-1">
+        <span className="font-display text-sm uppercase tracking-[0.05em] text-black truncate flex-1">
           {run.workflow_name}
         </span>
         <span
           className={cn(
-            'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium',
-            run.status === 'running' && 'bg-primary/10 text-primary',
-            run.status === 'paused' && 'bg-warning/10 text-warning',
-            run.status === 'pending' && 'bg-surface-elevated text-text-secondary'
+            'inline-flex items-center rounded-none border-[2px] bg-white px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-[0.045em]',
+            run.status === 'running' && 'border-black text-black',
+            run.status === 'paused' && 'border-[#ffa500] text-[#ffa500]',
+            run.status === 'pending' && 'border-[#cccccc] text-[var(--text-secondary)]'
           )}
         >
           {run.status}
         </span>
-        <span className="text-xs text-text-tertiary shrink-0">{elapsed}</span>
+        <span className="font-mono text-xs text-[var(--text-tertiary)] shrink-0">{elapsed}</span>
       </div>
 
       {/* Live progress */}
@@ -214,7 +222,7 @@ export function WorkflowRunCard({
         )}
 
       {/* Metadata row */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-secondary">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-[var(--text-secondary)]">
         <span className="flex items-center gap-1">
           {PLATFORM_ICONS[run.platform_type ?? ''] ?? <Globe className="h-3.5 w-3.5" />}
           {run.platform_type ?? 'unknown'}
@@ -225,7 +233,7 @@ export function WorkflowRunCard({
             onClick={(): void => {
               navigate(`/chat/${encodeURIComponent(run.parent_platform_id ?? '')}`);
             }}
-            className="flex items-center gap-1 text-primary/80 hover:text-primary transition-colors"
+            className="flex items-center gap-1 text-[#0000ff] hover:underline transition-colors"
           >
             <MessageSquare className="h-3 w-3" />
             Parent chat
@@ -236,7 +244,12 @@ export function WorkflowRunCard({
       {/* User message — expandable */}
       {displayMessage && (
         <div className="space-y-0.5">
-          <p className={cn('text-xs text-text-tertiary italic', !messageExpanded && 'truncate')}>
+          <p
+            className={cn(
+              'font-mono text-xs text-[var(--text-tertiary)] italic',
+              !messageExpanded && 'truncate'
+            )}
+          >
             {displayMessage}
           </p>
           {longMessage && (
@@ -244,7 +257,7 @@ export function WorkflowRunCard({
               onClick={(): void => {
                 setMessageExpanded(e => !e);
               }}
-              className="text-[10px] text-text-tertiary hover:text-text-secondary underline"
+              className="font-sans text-[10px] font-semibold uppercase tracking-[0.05em] text-black hover:underline"
             >
               {messageExpanded ? 'Show less' : 'Show more'}
             </button>
@@ -254,9 +267,9 @@ export function WorkflowRunCard({
 
       {/* Approval request message */}
       {run.status === 'paused' && run.metadata?.approval != null && (
-        <div className="rounded-md bg-warning/5 border border-warning/20 px-3 py-2 flex items-start gap-2">
-          <Pause className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-          <p className="text-xs text-text-secondary">
+        <div className="rounded-none border-l-[5px] border-[#ffa500] bg-white px-3 py-2 flex items-start gap-2">
+          <Pause className="h-4 w-4 text-[#ffa500] shrink-0 mt-0.5" />
+          <p className="font-sans text-xs text-black">
             {(
               run.metadata.approval as {
                 message?: string;
@@ -268,7 +281,7 @@ export function WorkflowRunCard({
 
       {/* Working path */}
       {run.working_path && (
-        <p className="text-[11px] text-text-tertiary truncate">
+        <p className="font-mono text-[11px] text-[var(--text-tertiary)] truncate">
           Worktree: {run.working_path.split('/').pop()}
         </p>
       )}
@@ -279,7 +292,7 @@ export function WorkflowRunCard({
           onClick={(): void => {
             navigate(`/workflows/runs/${run.id}`);
           }}
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-text-secondary hover:bg-surface-elevated hover:text-text-primary transition-colors"
+          className="flex items-center gap-1 rounded-none border-[2px] border-black bg-white px-3 py-1.5 font-sans text-xs font-semibold uppercase tracking-[0.05em] text-black transition-colors hover:bg-black hover:text-white"
         >
           <FileText className="h-3.5 w-3.5" />
           View Logs
@@ -289,7 +302,7 @@ export function WorkflowRunCard({
             onClick={(): void => {
               navigate(`/chat/${encodeURIComponent(chatId)}`);
             }}
-            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-text-secondary hover:bg-surface-elevated hover:text-text-primary transition-colors"
+            className="flex items-center gap-1 rounded-none border-[2px] border-black bg-white px-3 py-1.5 font-sans text-xs font-semibold uppercase tracking-[0.05em] text-black transition-colors hover:bg-black hover:text-white"
           >
             <MessageSquare className="h-3.5 w-3.5" />
             Open Chat
@@ -300,7 +313,7 @@ export function WorkflowRunCard({
             href={`vscode://file/${run.working_path.replace(/\\/g, '/')}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-text-secondary hover:bg-surface-elevated hover:text-text-primary transition-colors"
+            className="flex items-center gap-1 rounded-none border-[2px] border-black bg-white px-3 py-1.5 font-sans text-xs font-semibold uppercase tracking-[0.05em] text-black transition-colors hover:bg-black hover:text-white"
           >
             <ExternalLink className="h-3.5 w-3.5" />
             Open in IDE
@@ -312,7 +325,7 @@ export function WorkflowRunCard({
               onClick={(): void => {
                 onApprove(run.id);
               }}
-              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-success/80 hover:bg-success/10 hover:text-success transition-colors"
+              className="flex items-center gap-1 rounded-none border-[3px] border-[#008000] bg-white px-3 py-1.5 font-sans text-xs font-semibold uppercase tracking-[0.05em] text-[#008000] transition-colors hover:bg-[#008000] hover:text-white active:border-[5px]"
             >
               <CheckCircle className="h-3.5 w-3.5" />
               Approve
@@ -321,7 +334,7 @@ export function WorkflowRunCard({
           {run.status === 'paused' && onReject && (
             <ConfirmRunActionDialog
               trigger={
-                <button className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-error/80 hover:bg-error/10 hover:text-error transition-colors">
+                <button className="flex items-center gap-1 rounded-none border-[3px] border-[#ff0000] bg-white px-3 py-1.5 font-sans text-xs font-semibold uppercase tracking-[0.05em] text-[#ff0000] transition-colors hover:bg-[#ff0000] hover:text-white active:border-[5px]">
                   <XCircle className="h-3.5 w-3.5" />
                   Reject
                 </button>
@@ -349,7 +362,7 @@ export function WorkflowRunCard({
               onClick={(): void => {
                 onResume(run.id);
               }}
-              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-primary/80 hover:bg-primary/10 hover:text-primary transition-colors"
+              className="flex items-center gap-1 rounded-none border-[3px] border-black bg-black px-3 py-1.5 font-sans text-xs font-semibold uppercase tracking-[0.05em] text-white transition-colors hover:bg-white hover:text-black active:border-[5px]"
             >
               <PlayCircle className="h-3.5 w-3.5" />
               Resume
@@ -358,7 +371,7 @@ export function WorkflowRunCard({
           {run.status === 'running' && onAbandon && (
             <ConfirmRunActionDialog
               trigger={
-                <button className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-warning/80 hover:bg-warning/10 hover:text-warning transition-colors">
+                <button className="flex items-center gap-1 rounded-none border-[3px] border-[#ffa500] bg-white px-3 py-1.5 font-sans text-xs font-semibold uppercase tracking-[0.05em] text-[#ffa500] transition-colors hover:bg-[#ffa500] hover:text-white active:border-[5px]">
                   <Ban className="h-3.5 w-3.5" />
                   Abandon
                 </button>
@@ -379,7 +392,7 @@ export function WorkflowRunCard({
           {(run.status === 'running' || run.status === 'pending') && (
             <ConfirmRunActionDialog
               trigger={
-                <button className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-error/80 hover:bg-error/10 hover:text-error transition-colors">
+                <button className="flex items-center gap-1 rounded-none border-[3px] border-[#ff0000] bg-[#ff0000] px-3 py-1.5 font-sans text-xs font-semibold uppercase tracking-[0.125em] text-white transition-colors hover:bg-black hover:text-[#ff0000] active:border-[5px]">
                   <XCircle className="h-3.5 w-3.5" />
                   Cancel
                 </button>
@@ -400,7 +413,7 @@ export function WorkflowRunCard({
           {onDelete && run.status !== 'running' && run.status !== 'pending' && (
             <ConfirmRunActionDialog
               trigger={
-                <button className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-text-tertiary hover:bg-error/10 hover:text-error transition-colors">
+                <button className="flex items-center gap-1 rounded-none border-[2px] border-black bg-white px-3 py-1.5 font-sans text-xs font-semibold uppercase tracking-[0.05em] text-black transition-colors hover:bg-[#ff0000] hover:border-[#ff0000] hover:text-white">
                   <Trash2 className="h-3.5 w-3.5" />
                   Delete
                 </button>

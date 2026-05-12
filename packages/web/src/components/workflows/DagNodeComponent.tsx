@@ -22,27 +22,27 @@ export type DagFlowNode = Node<DagNodeData>;
 const TYPE_CONFIG = {
   command: {
     badge: 'CMD',
-    stripeColor: 'bg-node-command',
-    badgeBg: 'bg-node-command/20',
-    badgeText: 'text-node-command',
+    stripeColor: 'bg-black',
+    badgeBg: 'bg-white border-[2px] border-black',
+    badgeText: 'text-black',
   },
   prompt: {
     badge: 'PROMPT',
-    stripeColor: 'bg-node-prompt',
-    badgeBg: 'bg-node-prompt/20',
-    badgeText: 'text-node-prompt',
+    stripeColor: 'bg-[#ff0000]',
+    badgeBg: 'bg-white border-[2px] border-[#ff0000]',
+    badgeText: 'text-[#ff0000]',
   },
   bash: {
     badge: 'BASH',
-    stripeColor: 'bg-node-bash',
-    badgeBg: 'bg-node-bash/20',
-    badgeText: 'text-node-bash',
+    stripeColor: 'bg-[#ffa500]',
+    badgeBg: 'bg-white border-[2px] border-[#ffa500]',
+    badgeText: 'text-[#ffa500]',
   },
   loop: {
     badge: 'LOOP',
-    stripeColor: 'bg-node-loop',
-    badgeBg: 'bg-node-loop/20',
-    badgeText: 'text-node-loop',
+    stripeColor: 'bg-[#008000]',
+    badgeBg: 'bg-white border-[2px] border-[#008000]',
+    badgeText: 'text-[#008000]',
   },
 } as const;
 
@@ -61,7 +61,7 @@ function getContentPreview(data: DagNodeData): string {
 
 function MetadataPill({ children }: { children: React.ReactNode }): React.ReactElement {
   return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-surface-inset text-text-secondary">
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded-none border-[1px] border-black bg-[#f0f0f0] font-mono text-[9px] text-black">
       {children}
     </span>
   );
@@ -81,14 +81,14 @@ function DagNodeRender({ data, selected }: NodeProps<DagFlowNode>): React.ReactE
   return (
     <div
       className={cn(
-        'w-[180px] bg-surface border border-border rounded-lg overflow-hidden cursor-pointer transition-all flex',
-        selected && 'border-primary ring-1 ring-primary'
+        'w-[180px] bg-white border-[3px] border-black rounded-none overflow-hidden cursor-pointer transition-all flex',
+        selected && 'border-[5px]'
       )}
     >
-      <Handle type="target" position={Position.Top} className="!bg-accent !w-2 !h-2" />
+      <Handle type="target" position={Position.Top} className="!bg-black !w-2 !h-2" />
 
       {/* Left color stripe */}
-      <div className={cn('w-[3px] shrink-0', config.stripeColor)} />
+      <div className={cn('w-[5px] shrink-0', config.stripeColor)} />
 
       {/* Content area */}
       <div className="flex-1 min-w-0 px-2.5 py-2">
@@ -96,19 +96,21 @@ function DagNodeRender({ data, selected }: NodeProps<DagFlowNode>): React.ReactE
         <div className="flex items-center gap-1.5 mb-1">
           <span
             className={cn(
-              'text-[9px] font-semibold px-1.5 py-0.5 rounded shrink-0',
+              'font-display text-[9px] uppercase tracking-[0.05em] px-1.5 py-0.5 rounded-none shrink-0',
               config.badgeBg,
               config.badgeText
             )}
           >
             {config.badge}
           </span>
-          <span className="text-xs font-medium text-text-primary truncate">{data.label}</span>
+          <span className="font-sans text-xs font-semibold text-black truncate">{data.label}</span>
         </div>
 
         {/* Content preview */}
         {preview && (
-          <div className="text-[10px] font-mono text-text-tertiary truncate mb-1">{preview}</div>
+          <div className="font-mono text-[10px] text-[var(--text-tertiary)] truncate mb-1">
+            {preview}
+          </div>
         )}
 
         {/* Metadata pills */}
@@ -126,7 +128,7 @@ function DagNodeRender({ data, selected }: NodeProps<DagFlowNode>): React.ReactE
         )}
       </div>
 
-      <Handle type="source" position={Position.Bottom} className="!bg-accent !w-2 !h-2" />
+      <Handle type="source" position={Position.Bottom} className="!bg-black !w-2 !h-2" />
     </div>
   );
 }

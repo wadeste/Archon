@@ -41,7 +41,7 @@ export function NodePalette(): React.ReactElement {
         onDragStart={(e): void => {
           onDragStart(e, 'prompt', 'Prompt');
         }}
-        className="flex items-center gap-2 px-2 py-1.5 rounded-md border border-dashed border-border hover:border-accent hover:bg-accent/5 cursor-grab text-xs text-text-primary mb-1"
+        className="flex items-center gap-2 px-2 py-1.5 rounded-none border border-dashed border-border hover:border-accent hover:bg-accent/5 cursor-grab text-xs text-text-primary mb-1"
       >
         <span className="text-[10px] text-accent font-medium">PROMPT</span>
         <span>Inline prompt</span>
@@ -53,7 +53,7 @@ export function NodePalette(): React.ReactElement {
         onDragStart={(e): void => {
           onDragStart(e, 'bash', 'Shell');
         }}
-        className="flex items-center gap-2 px-2 py-1.5 rounded-md border border-dashed border-border hover:border-accent hover:bg-accent/5 cursor-grab text-xs text-text-primary mb-2"
+        className="flex items-center gap-2 px-2 py-1.5 rounded-none border border-dashed border-border hover:border-accent hover:bg-accent/5 cursor-grab text-xs text-text-primary mb-2"
       >
         <span className="text-[10px] text-accent font-medium">BASH</span>
         <span>Shell script</span>
@@ -64,7 +64,7 @@ export function NodePalette(): React.ReactElement {
         onDragStart={(e): void => {
           onDragStart(e, 'loop', 'Loop');
         }}
-        className="flex items-center gap-2 px-2 py-1.5 rounded-md border border-dashed border-border hover:border-accent hover:bg-accent/5 cursor-grab text-xs text-text-primary mb-2"
+        className="flex items-center gap-2 px-2 py-1.5 rounded-none border border-dashed border-border hover:border-accent hover:bg-accent/5 cursor-grab text-xs text-text-primary mb-2"
       >
         <span className="text-[10px] text-accent font-medium">LOOP</span>
         <span>Repeat prompt</span>
@@ -89,7 +89,7 @@ export function NodePalette(): React.ReactElement {
               onDragStart={(e): void => {
                 onDragStart(e, 'command', cmd.name);
               }}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-md border border-border hover:border-accent hover:bg-accent/5 cursor-grab text-xs text-text-primary mb-1"
+              className="flex items-center gap-2 px-2 py-1.5 rounded-none border border-border hover:border-accent hover:bg-accent/5 cursor-grab text-xs text-text-primary mb-1"
             >
               <span className="text-[10px] text-text-tertiary font-medium">CMD</span>
               <span className="truncate">{cmd.name}</span>
@@ -110,7 +110,7 @@ export function NodePalette(): React.ReactElement {
               onDragStart={(e): void => {
                 onDragStart(e, 'command', cmd.name);
               }}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-md border border-border hover:border-accent hover:bg-accent/5 cursor-grab text-xs text-text-primary mb-1"
+              className="flex items-center gap-2 px-2 py-1.5 rounded-none border border-border hover:border-accent hover:bg-accent/5 cursor-grab text-xs text-text-primary mb-1"
             >
               <span className="text-[10px] text-text-tertiary font-medium">CMD</span>
               <span className="truncate">{cmd.name}</span>
@@ -131,7 +131,7 @@ export function NodePalette(): React.ReactElement {
               onDragStart={(e): void => {
                 onDragStart(e, 'command', cmd.name);
               }}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-md border border-border hover:border-accent hover:bg-accent/5 cursor-grab text-xs text-text-primary mb-1"
+              className="flex items-center gap-2 px-2 py-1.5 rounded-none border border-border hover:border-accent hover:bg-accent/5 cursor-grab text-xs text-text-primary mb-1"
             >
               <span className="text-[10px] text-text-tertiary font-medium">CMD</span>
               <span className="truncate">{cmd.name}</span>

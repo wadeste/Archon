@@ -9,18 +9,18 @@ interface ErrorCardProps {
 
 export function ErrorCard({ error, onRetry }: ErrorCardProps): React.ReactElement {
   return (
-    <div className="rounded-lg border border-border border-l-[3px] border-l-error bg-surface p-4">
+    <div className="rounded-none border-[3px] border-[#ff0000] bg-white p-4">
       <div className="flex items-start gap-3">
-        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
+        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#ff0000]" />
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <p className="text-sm text-text-primary">{error.message}</p>
+            <p className="font-sans text-sm text-black">{error.message}</p>
             <span
               className={cn(
-                'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium',
+                'shrink-0 rounded-none border-[2px] bg-white px-2 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-[0.045em]',
                 error.classification === 'transient'
-                  ? 'bg-warning/20 text-warning'
-                  : 'bg-error/20 text-error'
+                  ? 'border-[#ffa500] text-[#ffa500]'
+                  : 'border-[#ff0000] text-[#ff0000]'
               )}
             >
               {error.classification === 'transient' ? 'Transient' : 'Fatal'}
@@ -32,7 +32,7 @@ export function ErrorCard({ error, onRetry }: ErrorCardProps): React.ReactElemen
                 <button
                   key={i}
                   onClick={action === 'Retry' ? onRetry : undefined}
-                  className="text-xs text-text-secondary hover:text-text-primary"
+                  className="font-sans text-xs font-semibold uppercase tracking-[0.05em] text-black hover:underline"
                 >
                   {action}
                 </button>
@@ -42,7 +42,7 @@ export function ErrorCard({ error, onRetry }: ErrorCardProps): React.ReactElemen
           {error.classification === 'transient' && onRetry && (
             <button
               onClick={onRetry}
-              className="mt-2 text-xs text-text-secondary hover:text-text-primary"
+              className="mt-2 rounded-none border-[3px] border-black bg-[#ff0000] px-3 py-1.5 font-sans text-xs font-semibold uppercase tracking-[0.125em] text-white transition-colors hover:bg-black hover:text-[#ff0000] active:border-[5px]"
             >
               Retry
             </button>

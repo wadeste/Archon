@@ -84,7 +84,7 @@ export function QuickAddPicker({
       <div
         ref={containerRef}
         style={{ position: 'absolute', left: position.x, top: position.y, zIndex: 50 }}
-        className="w-64 bg-surface-elevated border border-border rounded-lg shadow-lg overflow-hidden"
+        className="w-64 bg-surface-elevated border border-border rounded-none overflow-hidden"
       >
         <div className="px-3 py-2 border-b border-border flex items-center gap-2">
           <button
@@ -139,7 +139,7 @@ export function QuickAddPicker({
     <div
       ref={containerRef}
       style={{ position: 'absolute', left: position.x, top: position.y, zIndex: 50 }}
-      className="w-56 bg-surface-elevated border border-border rounded-lg shadow-lg overflow-hidden"
+      className="w-56 bg-surface-elevated border border-border rounded-none overflow-hidden"
     >
       <div className="px-3 py-2 border-b border-border">
         <span className="text-xs font-medium text-text-secondary">Add Node</span>

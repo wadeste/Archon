@@ -77,20 +77,22 @@ export function WorkflowCard({
           onToggle(workflow.name);
         }
       }}
-      className={`flex flex-col rounded-lg border p-4 transition-colors cursor-pointer h-full ${
-        isSelected
-          ? 'border-accent bg-accent/5'
-          : 'border-border bg-surface hover:bg-surface-hover hover:border-border/80'
+      className={`flex flex-col rounded-none border-[5px] p-4 transition-colors cursor-pointer h-full ${
+        isSelected ? 'border-black bg-[#f0f0f0]' : 'border-black bg-white hover:bg-[#f0f0f0]'
       }`}
     >
       {/* Header: Icon + Name + ID */}
       <div className="flex items-start gap-3 mb-3 shrink-0">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-elevated text-text-secondary">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-none border-[3px] border-black bg-white text-black">
           <CARD_ICON className="size-4.5" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-sm text-text-primary leading-tight">{displayName}</h3>
-          <p className="text-xs text-text-tertiary font-mono mt-0.5 truncate">{workflow.name}</p>
+          <h3 className="font-display text-base uppercase tracking-[0.05em] text-black leading-tight">
+            {displayName}
+          </h3>
+          <p className="font-mono text-xs text-[var(--text-tertiary)] mt-0.5 truncate">
+            {workflow.name}
+          </p>
         </div>
       </div>
 
@@ -101,20 +103,20 @@ export function WorkflowCard({
           <div className="space-y-2">
             {parsed.whenToUse && (
               <div>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-accent-bright">
+                <span className="font-display text-[10px] uppercase tracking-[0.05em] text-black">
                   When to use
                 </span>
-                <p className="text-text-secondary mt-0.5 line-clamp-3 leading-relaxed">
+                <p className="font-sans text-[var(--text-secondary)] mt-0.5 line-clamp-3 leading-relaxed">
                   {parsed.whenToUse}
                 </p>
               </div>
             )}
             {parsed.does && (
               <div>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-accent-bright">
+                <span className="font-display text-[10px] uppercase tracking-[0.05em] text-black">
                   Does
                 </span>
-                <p className="text-text-secondary mt-0.5 line-clamp-2 leading-relaxed">
+                <p className="font-sans text-[var(--text-secondary)] mt-0.5 line-clamp-2 leading-relaxed">
                   {parsed.does}
                 </p>
               </div>
@@ -125,20 +127,20 @@ export function WorkflowCard({
           <div className="space-y-2">
             {parsed.triggers.length > 0 && (
               <div>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-accent-bright">
+                <span className="font-display text-[10px] uppercase tracking-[0.05em] text-black">
                   Triggers
                 </span>
                 <div className="flex flex-wrap gap-1 mt-0.5">
                   {parsed.triggers.slice(0, 4).map(trigger => (
                     <span
                       key={trigger}
-                      className="inline-block rounded bg-surface-elevated px-1.5 py-0.5 text-[10px] text-text-secondary"
+                      className="inline-block rounded-none border-[1px] border-black bg-white px-1.5 py-0.5 font-mono text-[10px] text-black"
                     >
                       {trigger}
                     </span>
                   ))}
                   {parsed.triggers.length > 4 && (
-                    <span className="inline-block text-[10px] text-text-tertiary">
+                    <span className="inline-block font-mono text-[10px] text-[var(--text-tertiary)]">
                       +{parsed.triggers.length - 4} more
                     </span>
                   )}
@@ -147,10 +149,10 @@ export function WorkflowCard({
             )}
             {parsed.constraints && (
               <div>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-warning">
+                <span className="font-display text-[10px] uppercase tracking-[0.05em] text-[#ffa500]">
                   Not for
                 </span>
-                <p className="text-text-secondary mt-0.5 line-clamp-2 leading-relaxed">
+                <p className="font-sans text-[var(--text-secondary)] mt-0.5 line-clamp-2 leading-relaxed">
                   {parsed.constraints}
                 </p>
               </div>
@@ -160,19 +162,19 @@ export function WorkflowCard({
       ) : (
         /* Fallback: raw description */
         workflow.description && (
-          <p className="text-xs text-text-secondary mb-3 line-clamp-3 flex-1">
+          <p className="font-sans text-xs text-[var(--text-secondary)] mb-3 line-clamp-3 flex-1">
             {workflow.description}
           </p>
         )
       )}
 
       {/* Footer: Tags + Actions */}
-      <div className="flex items-center justify-between pt-2 border-t border-border/50 mt-auto shrink-0">
+      <div className="flex items-center justify-between pt-2 border-t-[3px] border-black mt-auto shrink-0">
         <div className="flex flex-wrap gap-1">
           {tags.slice(0, 3).map(tag => (
             <span
               key={tag}
-              className="inline-block rounded-full bg-surface-elevated px-2 py-0.5 text-[10px] font-medium text-text-secondary"
+              className="inline-block rounded-none border-[2px] border-black bg-white px-2 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-[0.045em] text-black"
             >
               #{tag}
             </span>
@@ -184,7 +186,7 @@ export function WorkflowCard({
             onClick={(e): void => {
               e.stopPropagation();
             }}
-            className="p-1.5 rounded-md text-text-tertiary hover:text-text-primary hover:bg-surface-elevated transition-colors"
+            className="p-1.5 rounded-none border-[2px] border-transparent text-black hover:border-black transition-colors"
             title="Edit in builder"
           >
             <Pencil className="size-3.5" />
@@ -194,7 +196,7 @@ export function WorkflowCard({
               e.stopPropagation();
               onRun(workflow.name);
             }}
-            className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/20 transition-colors"
+            className="inline-flex items-center gap-1 rounded-none border-[3px] border-black bg-black px-3 py-1.5 font-sans text-[11px] font-semibold uppercase tracking-[0.125em] text-white transition-colors hover:bg-white hover:text-black active:border-[5px]"
             title="Configure and run workflow"
           >
             <Play className="size-3" />

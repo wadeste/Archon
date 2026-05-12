@@ -113,8 +113,8 @@ export function WorkflowDagViewer({
   return (
     <div className="h-full w-full relative">
       {isRunning && currentlyExecuting && (
-        <div className="absolute top-3 right-3 z-10 flex items-center gap-2 rounded-md bg-surface/90 backdrop-blur-sm border border-border px-3 py-1.5 text-xs">
-          <span className="inline-block w-2 h-2 rounded-full bg-accent-bright animate-pulse" />
+        <div className="absolute top-3 right-3 z-10 flex items-center gap-2 rounded-none bg-surface/90 backdrop-blur-sm border border-border px-3 py-1.5 text-xs">
+          <span className="inline-block w-2 h-2 rounded-none bg-accent-bright animate-pulse" />
           <span className="text-text-secondary">Executing:</span>
           <span className="font-medium text-text-primary">{currentlyExecuting.nodeName}</span>
           <span className="text-text-tertiary">

@@ -115,7 +115,7 @@ export function WorkflowList(): React.ReactElement {
 
   if (loadingWorkflows) {
     return (
-      <div className="flex items-center justify-center h-32 text-text-secondary text-sm">
+      <div className="flex items-center justify-center h-32 font-mono text-[var(--text-secondary)] text-sm">
         Loading workflows...
       </div>
     );
@@ -123,7 +123,9 @@ export function WorkflowList(): React.ReactElement {
 
   if (workflowsError) {
     return (
-      <div className="text-sm text-error">Failed to load workflows. Check server connectivity.</div>
+      <div className="font-mono text-sm text-[#ff0000]">
+        Failed to load workflows. Check server connectivity.
+      </div>
     );
   }
 
@@ -138,7 +140,7 @@ export function WorkflowList(): React.ReactElement {
           <div className="space-y-3">
             {/* Search bar */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-text-tertiary" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 z-10 size-4 text-[var(--text-tertiary)]" />
               <input
                 type="text"
                 value={searchQuery}
@@ -146,7 +148,7 @@ export function WorkflowList(): React.ReactElement {
                   setSearchQuery(e.target.value);
                 }}
                 placeholder="Search workflows..."
-                className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-surface text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent"
+                className="w-full pl-9 pr-3 py-2 rounded-none border-[3px] border-black bg-[#f0f0f0] font-mono text-sm text-black placeholder:text-[var(--text-tertiary)] outline-none focus-visible:border-[5px] focus-visible:-m-[2px]"
               />
             </div>
 
@@ -158,10 +160,8 @@ export function WorkflowList(): React.ReactElement {
                   onClick={(): void => {
                     setActiveCategory(cat);
                   }}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    activeCategory === cat
-                      ? 'bg-primary text-white'
-                      : 'bg-surface-elevated text-text-secondary hover:text-text-primary'
+                  className={`px-3 py-1 rounded-none border-[2px] border-black bg-white font-sans text-[10px] font-semibold uppercase tracking-[0.05em] transition-colors ${
+                    activeCategory === cat ? 'bg-black text-white' : 'text-black hover:bg-[#f0f0f0]'
                   }`}
                 >
                   {cat}
@@ -173,12 +173,14 @@ export function WorkflowList(): React.ReactElement {
 
         {/* Workflow grid */}
         {!hasWorkflows ? (
-          <div className="text-sm text-text-secondary">
+          <div className="font-sans text-sm text-[var(--text-secondary)]">
             No workflows found. Add workflow definitions to{' '}
-            <code className="text-xs bg-surface-inset px-1 py-0.5 rounded">.archon/workflows/</code>
+            <code className="rounded-none border-[1px] border-black bg-[#f0f0f0] px-1 py-0.5 font-mono text-xs">
+              .archon/workflows/
+            </code>
           </div>
         ) : filteredWorkflows.length === 0 ? (
-          <div className="text-sm text-text-secondary py-8 text-center">
+          <div className="font-sans text-sm text-[var(--text-secondary)] py-8 text-center">
             No workflows match your search.
           </div>
         ) : (
@@ -204,20 +206,22 @@ export function WorkflowList(): React.ReactElement {
         )}
       </div>
 
-      {/* Sticky run bar — anchored at bottom, slides up with glow when workflow selected */}
+      {/* Sticky run bar — anchored at bottom, slides up when workflow selected */}
       {selectedWorkflow && (
-        <div className="shrink-0 border-t border-accent/40 bg-surface-elevated px-4 py-3 animate-slide-up shadow-[0_-4px_20px_rgba(59,130,246,0.15)]">
+        <div className="shrink-0 border-t-[5px] border-black bg-white px-4 py-3 animate-slide-up">
           <div className="flex items-center gap-3">
             {/* Workflow name + dismiss */}
             <div className="flex items-center gap-2 shrink-0">
-              <span className="text-sm font-medium text-text-primary">{displayName}</span>
+              <span className="font-display text-sm uppercase tracking-[0.05em] text-black">
+                {displayName}
+              </span>
               <button
                 onClick={(): void => {
                   setSelectedWorkflow(null);
                   setRunMessage('');
                   setRunError(null);
                 }}
-                className="p-0.5 rounded text-text-tertiary hover:text-text-primary transition-colors"
+                className="p-0.5 rounded-none border-[2px] border-transparent text-black hover:border-black transition-colors"
                 title="Dismiss"
               >
                 <X className="size-3.5" />
@@ -230,7 +234,7 @@ export function WorkflowList(): React.ReactElement {
               onChange={(e): void => {
                 setLocalProjectId(e.target.value || null);
               }}
-              className="w-48 shrink-0 rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+              className="w-48 shrink-0 rounded-none border-[3px] border-black bg-[#f0f0f0] px-2 py-1.5 font-mono text-xs text-black outline-none focus-visible:border-[5px] focus-visible:-m-[2px]"
             >
               <option value="">No project</option>
               {codebases?.map(cb => (
@@ -249,7 +253,7 @@ export function WorkflowList(): React.ReactElement {
                 setRunMessage(e.target.value);
               }}
               placeholder="Enter a message for this workflow..."
-              className="flex-1 min-w-0 px-3 py-1.5 rounded-md border border-border bg-surface text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
+              className="flex-1 min-w-0 px-3 py-1.5 rounded-none border-[3px] border-black bg-[#f0f0f0] font-mono text-sm text-black placeholder:text-[var(--text-tertiary)] outline-none focus-visible:border-[5px] focus-visible:-m-[2px] disabled:bg-[#f5f5f5] disabled:border-[#cccccc] disabled:cursor-not-allowed"
               onKeyDown={(e): void => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
@@ -268,7 +272,7 @@ export function WorkflowList(): React.ReactElement {
               {running ? 'Starting...' : 'Run'}
             </Button>
           </div>
-          {runError && <p className="text-xs text-error mt-1">{runError}</p>}
+          {runError && <p className="font-mono text-xs text-[#ff0000] mt-1">{runError}</p>}
         </div>
       )}
     </div>

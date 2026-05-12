@@ -27,15 +27,15 @@ export interface NodeInspectorProps {
 }
 
 const inputClass =
-  'w-full rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent';
+  'w-full rounded-none border border-border bg-surface px-2 py-1.5 text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent';
 
 const selectClass =
-  'w-full rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent';
+  'w-full rounded-none border border-border bg-surface px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent';
 
 const labelClass = 'text-[10px] text-text-tertiary uppercase tracking-wide';
 
 const textareaClass =
-  'w-full rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent resize-y';
+  'w-full rounded-none border border-border bg-surface px-2 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent resize-y';
 
 type LoopConfig = NonNullable<DagNode['loop']>;
 
@@ -144,7 +144,7 @@ function DependencyTags({
       {values.map(dep => (
         <span
           key={dep}
-          className="inline-flex items-center gap-1 rounded-md bg-surface-elevated px-1.5 py-0.5 text-[10px] font-mono text-text-secondary"
+          className="inline-flex items-center gap-1 rounded-none bg-surface-elevated px-1.5 py-0.5 text-[10px] font-mono text-text-secondary"
         >
           {dep}
           <button
@@ -178,7 +178,7 @@ function DependencyTags({
           onBlur={handleAdd}
           autoFocus
           placeholder="node-id"
-          className="w-20 rounded-md border border-border bg-surface px-1.5 py-0.5 text-[10px] font-mono text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent"
+          className="w-20 rounded-none border border-border bg-surface px-1.5 py-0.5 text-[10px] font-mono text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent"
         />
       ) : (
         <button
@@ -186,7 +186,7 @@ function DependencyTags({
           onClick={(): void => {
             setAdding(true);
           }}
-          className="inline-flex items-center rounded-md border border-dashed border-border px-1.5 py-0.5 text-[10px] text-text-tertiary hover:text-text-secondary hover:border-accent"
+          className="inline-flex items-center rounded-none border border-dashed border-border px-1.5 py-0.5 text-[10px] text-text-tertiary hover:text-text-secondary hover:border-accent"
         >
           +
         </button>
@@ -580,7 +580,7 @@ function ExecutionTab({
                 }}
                 placeholder="3000"
                 disabled={!node.retry}
-                className={cn(inputClass, !node.retry && 'opacity-50')}
+                className={cn(inputClass, !node.retry && 'cursor-not-allowed')}
               />
             </Field>
 
@@ -598,7 +598,7 @@ function ExecutionTab({
                   }
                 }}
                 disabled={!node.retry}
-                className={cn(selectClass, !node.retry && 'opacity-50')}
+                className={cn(selectClass, !node.retry && 'cursor-not-allowed')}
               >
                 <option value="">Default (transient)</option>
                 <option value="transient">transient</option>
@@ -652,7 +652,7 @@ function ToolsTab({
                 handleModeChange(mode);
               }}
               className={cn(
-                'flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors',
+                'flex-1 rounded-none px-2 py-1 text-xs font-medium transition-colors',
                 currentMode === mode
                   ? 'bg-accent text-accent-foreground'
                   : 'bg-surface-elevated text-text-secondary hover:text-text-primary'
@@ -673,7 +673,7 @@ function ToolsTab({
               onClick={(): void => {
                 onUpdate({ allowed_tools: preset.allowed, denied_tools: undefined });
               }}
-              className="rounded-full border border-border px-2 py-0.5 text-[10px] text-text-secondary hover:text-text-primary hover:border-accent transition-colors"
+              className="rounded-none border border-border px-2 py-0.5 text-[10px] text-text-secondary hover:text-text-primary hover:border-accent transition-colors"
             >
               {preset.label}
             </button>

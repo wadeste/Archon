@@ -112,17 +112,17 @@ export function ConversationItem({
       to={`/chat/${encodeURIComponent(conversation.platform_conversation_id)}`}
       className={({ isActive }): string =>
         cn(
-          'group relative flex min-h-[2.75rem] w-full items-start gap-2 rounded-md px-3 py-2 transition-colors duration-150',
-          isActive ? 'border-l-2 border-l-primary bg-accent-muted' : 'hover:bg-surface-elevated'
+          'group relative flex min-h-[2.75rem] w-full items-start gap-2 rounded-none border-b-[3px] border-black px-3 py-2 transition-colors duration-150 last:border-b-0',
+          isActive ? 'bg-black text-white' : 'text-black hover:underline'
         )
       }
     >
       <div
         className={cn(
-          'h-2 w-2 shrink-0 rounded-full',
-          status === 'running' && 'bg-primary animate-pulse',
-          status === 'failed' && 'bg-destructive',
-          status === 'idle' && 'bg-text-tertiary'
+          'h-2.5 w-2.5 shrink-0 mt-1 border-[2px] rounded-none',
+          status === 'running' && 'border-black bg-black animate-pulse',
+          status === 'failed' && 'border-[#ff0000] bg-[#ff0000]',
+          status === 'idle' && 'border-[#cccccc] bg-white'
         )}
       />
       <div className="flex min-w-0 flex-1 flex-col">
@@ -139,32 +139,30 @@ export function ConversationItem({
               e.preventDefault();
               e.stopPropagation();
             }}
-            className="w-full bg-transparent text-sm text-text-primary outline-none border-b border-primary"
+            className="w-full bg-transparent font-sans text-sm outline-none border-b-[3px] border-black"
           />
         ) : (
           <div className="flex items-center gap-1.5 min-w-0">
             <span
-              className="truncate text-sm text-text-primary"
+              className="truncate font-sans text-sm"
               title={conversation.title ?? 'Untitled conversation'}
             >
               {displayName}
             </span>
             {conversation.platform_type !== 'web' && (
-              <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary bg-surface-secondary rounded px-1 py-0.5 shrink-0">
+              <span className="font-sans text-[10px] font-semibold uppercase tracking-[0.05em] border-[2px] border-current rounded-none px-1 py-0.5 shrink-0">
                 {conversation.platform_type}
               </span>
             )}
           </div>
         )}
-        {renameError && <span className="text-[10px] text-error">{renameError}</span>}
-        <span className="truncate text-[11px] text-text-tertiary">{lastActivity}</span>
-        {projectName && (
-          <span className="truncate text-[10px] text-text-tertiary">{projectName}</span>
-        )}
+        {renameError && <span className="font-mono text-[10px] text-[#ff0000]">{renameError}</span>}
+        <span className="truncate font-mono text-[11px]">{lastActivity}</span>
+        {projectName && <span className="truncate font-mono text-[10px]">{projectName}</span>}
       </div>
       {!isEditing && (
         <>
-          <div className="absolute right-2 top-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 z-10">
+          <div className="absolute right-2 top-2 flex items-center gap-0.5 invisible group-hover:visible transition-colors duration-150 z-10">
             <button
               onClick={(e): void => {
                 e.preventDefault();
@@ -177,10 +175,10 @@ export function ConversationItem({
                   inputRef.current?.select();
                 }, 0);
               }}
-              className="p-1 rounded hover:bg-surface-elevated"
+              className="p-1 rounded-none border-[2px] border-transparent hover:border-current"
               title="Rename conversation"
             >
-              <Pencil className="h-3.5 w-3.5 text-text-tertiary hover:text-primary" />
+              <Pencil className="h-3.5 w-3.5" />
             </button>
             <button
               onClick={(e): void => {
@@ -189,10 +187,10 @@ export function ConversationItem({
                 setDeleteError(null);
                 setDeleteDialogOpen(true);
               }}
-              className="p-1 rounded hover:bg-surface-elevated"
+              className="p-1 rounded-none border-[2px] border-transparent hover:border-current"
               title="Delete conversation"
             >
-              <Trash2 className="h-3.5 w-3.5 text-text-tertiary hover:text-error" />
+              <Trash2 className="h-3.5 w-3.5" />
             </button>
           </div>
           <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -204,7 +202,9 @@ export function ConversationItem({
                   cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              {deleteError && <p className="text-sm text-error px-1">{deleteError}</p>}
+              {deleteError && (
+                <p className="font-mono text-sm text-[#ff0000] px-1">{deleteError}</p>
+              )}
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
@@ -214,7 +214,7 @@ export function ConversationItem({
         </>
       )}
       {badge !== undefined && badge > 0 && (
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-error text-[10px] font-semibold text-white px-1">
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-none border-[2px] border-black bg-[#ff0000] font-sans text-[10px] font-bold text-white px-1">
           {badge > 99 ? '99+' : String(badge)}
         </span>
       )}

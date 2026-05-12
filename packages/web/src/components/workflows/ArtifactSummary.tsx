@@ -71,7 +71,7 @@ export function ArtifactSummary({ artifacts, runId }: ArtifactSummaryProps): Rea
 
   return (
     <>
-      <div className="rounded-lg border border-border bg-surface p-3">
+      <div className="rounded-none border border-border bg-surface p-3">
         <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
           Artifacts
         </h4>

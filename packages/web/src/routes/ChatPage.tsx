@@ -186,7 +186,7 @@ export function ChatPage(): React.ReactElement {
         <div className="px-3 pt-3 pb-2">
           <button
             onClick={handleNewChat}
-            className="flex w-full items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-accent-hover transition-colors"
+            className="flex w-full items-center gap-2 rounded-none bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-accent-hover transition-colors"
           >
             <MessageSquarePlus className="h-4 w-4 shrink-0" />
             New Chat
@@ -229,7 +229,7 @@ export function ChatPage(): React.ReactElement {
                   }}
                   placeholder="GitHub URL or local path"
                   disabled={addLoading}
-                  className="w-full rounded-md border border-border bg-surface-elevated px-2 py-1 text-xs text-text-primary placeholder:text-text-tertiary focus:border-primary focus:outline-none disabled:opacity-50"
+                  className="w-full rounded-none border border-border bg-surface-elevated px-2 py-1 text-xs text-text-primary placeholder:text-text-tertiary focus:border-primary focus:outline-none disabled:bg-[#f5f5f5] disabled:border-[#cccccc] disabled:text-[var(--text-tertiary)]"
                 />
                 {addLoading && (
                   <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" />
@@ -249,7 +249,7 @@ export function ChatPage(): React.ReactElement {
               onChange={(e): void => {
                 setSelectedProjectId(e.target.value || null);
               }}
-              className="w-full rounded-md border border-border bg-surface-elevated px-2 py-1.5 text-xs text-text-primary focus:border-primary focus:outline-none"
+              className="w-full rounded-none border border-border bg-surface-elevated px-2 py-1.5 text-xs text-text-primary focus:border-primary focus:outline-none"
             >
               <option value="">All Projects</option>
               {codebases?.map(cb => (
@@ -274,7 +274,7 @@ export function ChatPage(): React.ReactElement {
                 setSearchQuery(e.target.value);
               }}
               placeholder="Search..."
-              className="w-full rounded-md border border-border bg-surface-elevated py-1.5 pl-7 pr-2 text-xs text-text-primary placeholder:text-text-tertiary focus:border-primary focus:outline-none"
+              className="w-full rounded-none border border-border bg-surface-elevated py-1.5 pl-7 pr-2 text-xs text-text-primary placeholder:text-text-tertiary focus:border-primary focus:outline-none"
             />
           </div>
         </div>

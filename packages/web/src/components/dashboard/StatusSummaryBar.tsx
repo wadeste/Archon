@@ -41,7 +41,7 @@ export function StatusSummaryBar({
   health,
 }: StatusSummaryBarProps): React.ReactElement {
   return (
-    <div className="rounded-lg border border-border bg-surface p-4 space-y-3">
+    <div className="rounded-none border-[5px] border-black bg-white p-4 space-y-3">
       {/* Row 1: Status chips */}
       <div className="flex flex-wrap items-center gap-2">
         <button
@@ -49,10 +49,8 @@ export function StatusSummaryBar({
             onFilterChange(null);
           }}
           className={cn(
-            'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-            activeFilter === null
-              ? 'bg-primary/10 text-primary border border-primary'
-              : 'bg-surface-elevated text-text-secondary border border-border hover:border-text-tertiary'
+            'rounded-none border-[2px] border-black bg-white px-3 py-1 font-sans text-[10px] font-semibold uppercase tracking-[0.05em] transition-colors',
+            activeFilter === null ? 'bg-black text-white' : 'text-black hover:bg-[#f0f0f0]'
           )}
         >
           All: {String(counts.all)}
@@ -67,10 +65,8 @@ export function StatusSummaryBar({
                 onFilterChange(isActive ? null : status);
               }}
               className={cn(
-                'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                isActive
-                  ? 'bg-primary/10 text-primary border border-primary'
-                  : 'bg-surface-elevated text-text-secondary border border-border hover:border-text-tertiary',
+                'rounded-none border-[2px] border-black bg-white px-3 py-1 font-sans text-[10px] font-semibold uppercase tracking-[0.05em] transition-colors',
+                isActive ? 'bg-black text-white' : 'text-black hover:bg-[#f0f0f0]',
                 status === 'running' && count > 0 && !isActive && 'animate-pulse'
               )}
             >
@@ -87,7 +83,7 @@ export function StatusSummaryBar({
           onChange={(e): void => {
             onProjectFilterChange(e.target.value || null);
           }}
-          className="rounded-md border border-border bg-surface-elevated px-2 py-1.5 text-xs text-text-primary focus:border-primary focus:outline-none"
+          className="rounded-none border-[3px] border-black bg-[#f0f0f0] px-2 py-1.5 font-mono text-xs text-black outline-none focus-visible:border-[5px] focus-visible:-m-[2px]"
         >
           <option value="">All Projects</option>
           {codebases?.map(cb => (
@@ -102,7 +98,7 @@ export function StatusSummaryBar({
           onChange={(e): void => {
             onDateRangeChange(e.target.value as DateRange);
           }}
-          className="rounded-md border border-border bg-surface-elevated px-2 py-1.5 text-xs text-text-primary focus:border-primary focus:outline-none"
+          className="rounded-none border-[3px] border-black bg-[#f0f0f0] px-2 py-1.5 font-mono text-xs text-black outline-none focus-visible:border-[5px] focus-visible:-m-[2px]"
         >
           {DATE_RANGE_OPTIONS.map(opt => (
             <option key={opt.value} value={opt.value}>
@@ -112,7 +108,7 @@ export function StatusSummaryBar({
         </select>
 
         <div className="relative flex-1 min-w-[180px]">
-          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-tertiary" />
+          <Search className="absolute left-2 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" />
           <input
             type="text"
             value={searchQuery}
@@ -120,12 +116,12 @@ export function StatusSummaryBar({
               onSearchChange(e.target.value);
             }}
             placeholder="Search workflows..."
-            className="w-full rounded-md border border-border bg-surface-elevated py-1.5 pl-7 pr-2 text-xs text-text-primary placeholder:text-text-tertiary focus:border-primary focus:outline-none"
+            className="w-full rounded-none border-[3px] border-black bg-[#f0f0f0] py-1.5 pl-7 pr-2 font-mono text-xs text-black placeholder:text-[var(--text-tertiary)] outline-none focus-visible:border-[5px] focus-visible:-m-[2px]"
           />
         </div>
 
         {health && (
-          <span className="text-xs text-text-tertiary shrink-0">
+          <span className="font-mono text-xs text-[var(--text-tertiary)] shrink-0">
             Capacity: {String(health.concurrency.active)}/{String(health.concurrency.maxConcurrent)}{' '}
             active
           </span>

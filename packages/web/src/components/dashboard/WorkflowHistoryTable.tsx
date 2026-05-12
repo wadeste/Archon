@@ -11,9 +11,9 @@ interface WorkflowHistoryTableProps {
 }
 
 const STATUS_DOT_COLORS: Record<string, string> = {
-  completed: 'bg-success',
-  failed: 'bg-destructive',
-  cancelled: 'bg-text-tertiary',
+  completed: 'bg-[#008000] border-[#008000]',
+  failed: 'bg-[#ff0000] border-[#ff0000]',
+  cancelled: 'bg-white border-[#cccccc]',
 };
 
 const PLATFORM_ICONS: Record<string, React.ReactElement> = {
@@ -31,73 +31,75 @@ export function WorkflowHistoryTable({
   if (runs.length === 0) {
     return (
       <div className="flex items-center justify-center py-8">
-        <span className="text-xs text-text-tertiary">No history</span>
+        <span className="font-mono text-xs text-[var(--text-tertiary)]">No history</span>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
-      <table className="w-full text-xs">
+    <div className="overflow-x-auto rounded-none border-[3px] border-black">
+      <table className="w-full font-sans text-xs">
         <thead>
-          <tr className="border-b border-border bg-surface-elevated text-left text-text-tertiary">
-            <th className="px-3 py-2 font-medium w-8">Status</th>
-            <th className="px-3 py-2 font-medium">Workflow</th>
-            <th className="px-3 py-2 font-medium">Project</th>
-            <th className="px-3 py-2 font-medium w-16">Source</th>
-            <th className="px-3 py-2 font-medium w-20">Duration</th>
-            <th className="px-3 py-2 font-medium w-32">Started</th>
-            <th className="px-3 py-2 font-medium w-20">Actions</th>
+          <tr className="border-b-[3px] border-black bg-[#f0f0f0] text-left text-black">
+            <th className="px-3 py-2 font-display uppercase tracking-[0.05em] w-8">Status</th>
+            <th className="px-3 py-2 font-display uppercase tracking-[0.05em]">Workflow</th>
+            <th className="px-3 py-2 font-display uppercase tracking-[0.05em]">Project</th>
+            <th className="px-3 py-2 font-display uppercase tracking-[0.05em] w-16">Source</th>
+            <th className="px-3 py-2 font-display uppercase tracking-[0.05em] w-20">Duration</th>
+            <th className="px-3 py-2 font-display uppercase tracking-[0.05em] w-32">Started</th>
+            <th className="px-3 py-2 font-display uppercase tracking-[0.05em] w-20">Actions</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
+        <tbody>
           {runs.map(run => (
             <tr
               key={run.id}
               className={cn(
-                'hover:bg-surface-elevated transition-colors',
-                run.status === 'failed' && 'border-l-2 border-l-destructive'
+                'border-b-[1px] border-black hover:bg-[#f0f0f0] transition-colors last:border-b-0',
+                run.status === 'failed' && 'border-l-[5px] border-l-[#ff0000]'
               )}
             >
               <td className="px-3 py-2">
                 <div
                   className={cn(
-                    'h-2 w-2 rounded-full',
-                    STATUS_DOT_COLORS[run.status] ?? 'bg-text-tertiary'
+                    'h-2.5 w-2.5 border-[2px] rounded-none',
+                    STATUS_DOT_COLORS[run.status] ?? 'bg-white border-[#cccccc]'
                   )}
                 />
               </td>
               <td className="px-3 py-2">
                 <Link
                   to={`/workflows/runs/${run.id}`}
-                  className="text-text-primary hover:text-primary truncate block"
+                  className="text-black hover:underline truncate block"
                 >
                   {run.workflow_name}
                 </Link>
                 {run.user_message && (
-                  <p className="text-[11px] text-text-tertiary truncate max-w-[300px]">
+                  <p className="font-mono text-[11px] text-[var(--text-tertiary)] truncate max-w-[300px]">
                     {run.user_message}
                   </p>
                 )}
               </td>
-              <td className="px-3 py-2 text-text-secondary truncate">
+              <td className="px-3 py-2 text-[var(--text-secondary)] truncate">
                 {run.codebase_name ?? '\u2014'}
               </td>
               <td className="px-3 py-2">
-                <span className="flex items-center gap-1 text-text-secondary">
+                <span className="flex items-center gap-1 text-[var(--text-secondary)]">
                   {PLATFORM_ICONS[run.platform_type ?? ''] ?? null}
                   {run.platform_type ?? '\u2014'}
                 </span>
               </td>
-              <td className="px-3 py-2 text-text-secondary">
+              <td className="px-3 py-2 font-mono text-[var(--text-secondary)]">
                 {formatDuration(run.started_at, run.completed_at)}
               </td>
-              <td className="px-3 py-2 text-text-secondary">{formatStarted(run.started_at)}</td>
+              <td className="px-3 py-2 font-mono text-[var(--text-secondary)]">
+                {formatStarted(run.started_at)}
+              </td>
               <td className="px-3 py-2">
                 <div className="flex items-center gap-2">
                   <Link
                     to={`/workflows/runs/${run.id}`}
-                    className="text-primary hover:text-primary/80 transition-colors"
+                    className="font-semibold uppercase tracking-[0.05em] text-black hover:underline transition-colors"
                   >
                     View Logs
                   </Link>
@@ -105,7 +107,7 @@ export function WorkflowHistoryTable({
                     <ConfirmRunActionDialog
                       trigger={
                         <button
-                          className="text-text-tertiary hover:text-error transition-colors"
+                          className="rounded-none border-[2px] border-transparent p-0.5 text-black hover:border-[#ff0000] hover:text-[#ff0000] transition-colors"
                           title="Delete run"
                         >
                           <Trash2 className="h-3 w-3" />

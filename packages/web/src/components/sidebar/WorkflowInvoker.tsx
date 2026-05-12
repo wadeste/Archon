@@ -26,7 +26,11 @@ export function WorkflowInvoker({ codebaseId }: WorkflowInvokerProps): React.Rea
   });
 
   if (isErrorWorkflows) {
-    return <p className="mx-1 text-[10px] text-error">Failed to load workflows — retrying</p>;
+    return (
+      <p className="mx-1 font-mono text-[10px] text-[#ff0000]">
+        Failed to load workflows — retrying
+      </p>
+    );
   }
 
   if (!workflows || workflows.length === 0) return null;
@@ -68,7 +72,7 @@ export function WorkflowInvoker({ codebaseId }: WorkflowInvokerProps): React.Rea
           setSelectedWorkflow(e.target.value || null);
           setError(null);
         }}
-        className="w-full rounded-md border border-border bg-surface-elevated px-2 py-1.5 text-xs text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent"
+        className="w-full rounded-none border-[3px] border-black bg-[#f0f0f0] px-2 py-1.5 font-mono text-xs text-black outline-none focus-visible:border-[5px] focus-visible:-m-[2px]"
       >
         <option value="">Run workflow...</option>
         {workflows.map(entry => (
@@ -95,17 +99,21 @@ export function WorkflowInvoker({ codebaseId }: WorkflowInvokerProps): React.Rea
             name="workflow-message"
             autoComplete="off"
             disabled={running}
-            className="w-full rounded-md border border-border bg-surface px-2 py-1 text-xs text-text-primary placeholder:text-text-tertiary focus:border-primary focus:outline-none disabled:opacity-50"
+            className="w-full rounded-none border-[3px] border-black bg-[#f0f0f0] px-2 py-1 font-mono text-xs text-black placeholder:text-[var(--text-tertiary)] outline-none focus-visible:border-[5px] focus-visible:-m-[2px] disabled:bg-[#f5f5f5] disabled:border-[#cccccc] disabled:cursor-not-allowed"
             autoFocus
           />
           <div className="flex items-center justify-end gap-2">
-            {error && <span className="text-[10px] text-error flex-1 line-clamp-1">{error}</span>}
+            {error && (
+              <span className="font-mono text-[10px] text-[#ff0000] flex-1 line-clamp-1">
+                {error}
+              </span>
+            )}
             <button
               onClick={(): void => {
                 void handleRun();
               }}
               disabled={running || !message.trim()}
-              className="flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground hover:bg-accent-hover transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 rounded-none border-[3px] border-black bg-black px-2 py-1 font-sans text-[11px] font-semibold uppercase tracking-[0.05em] text-white transition-colors hover:bg-white hover:text-black active:border-[5px] disabled:bg-[#f0f0f0] disabled:text-[var(--text-tertiary)] disabled:border-[#cccccc] disabled:cursor-not-allowed"
             >
               {running && <Loader2 className="h-3 w-3 animate-spin" />}
               {running ? 'Starting...' : 'Run'}

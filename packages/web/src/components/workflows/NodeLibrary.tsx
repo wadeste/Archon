@@ -27,7 +27,7 @@ function LoadingSkeleton(): React.ReactElement {
   return (
     <div className="flex flex-col gap-2 p-2">
       {Array.from({ length: 8 }, (_, i) => (
-        <div key={i} className="h-7 rounded-md bg-surface-elevated animate-pulse" />
+        <div key={i} className="h-7 rounded-none bg-surface-elevated animate-pulse" />
       ))}
     </div>
   );
@@ -48,9 +48,9 @@ function DraggableItem({
       onDragStart={(e): void => {
         onDragStart(e, type, name);
       }}
-      className="flex items-center gap-2 px-2 py-1.5 rounded-md border border-dashed border-border hover:border-accent hover:bg-accent/5 cursor-grab text-xs text-text-primary"
+      className="flex items-center gap-2 px-2 py-1.5 rounded-none border border-dashed border-border hover:border-accent hover:bg-accent/5 cursor-grab text-xs text-text-primary"
     >
-      <span className={cn('w-2 h-2 rounded-full shrink-0', NODE_TYPE_COLORS[type])} />
+      <span className={cn('w-2 h-2 rounded-none shrink-0', NODE_TYPE_COLORS[type])} />
       <span className="font-mono truncate">{displayName}</span>
     </div>
   );
@@ -123,7 +123,7 @@ export function NodeLibrary({ commands, isLoading }: NodeLibraryProps): React.Re
             setSearch(e.target.value);
           }}
           placeholder="Search..."
-          className="w-full rounded-md border border-border bg-surface-elevated px-2 py-1 text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent"
+          className="w-full rounded-none border border-border bg-surface-elevated px-2 py-1 text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent"
         />
       </div>
 

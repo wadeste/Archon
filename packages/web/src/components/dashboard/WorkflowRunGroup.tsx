@@ -33,17 +33,17 @@ export function WorkflowRunGroup({
       {/* Group header — only shown when there's a shared parent */}
       {parentPlatformId && (
         <div className="flex items-center gap-2 px-1">
-          <div className="h-px flex-1 bg-border" />
+          <div className="h-[3px] flex-1 bg-black" />
           <button
             onClick={(): void => {
               navigate(`/chat/${encodeURIComponent(parentPlatformId)}`);
             }}
-            className="flex items-center gap-1.5 rounded-full border border-border bg-surface-elevated px-2.5 py-0.5 text-[11px] text-text-secondary hover:border-primary/40 hover:text-primary transition-colors shrink-0"
+            className="flex items-center gap-1.5 rounded-none border-[2px] border-black bg-white px-2.5 py-0.5 font-sans text-[11px] font-semibold uppercase tracking-[0.045em] text-black hover:bg-black hover:text-white transition-colors shrink-0"
           >
             <MessageSquare className="h-3 w-3" />
             {runs.length} run{runs.length !== 1 ? 's' : ''} from this chat
           </button>
-          <div className="h-px flex-1 bg-border" />
+          <div className="h-[3px] flex-1 bg-black" />
         </div>
       )}
 

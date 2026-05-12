@@ -65,7 +65,7 @@ export function StepLogs({ runId, lines = [] }: StepLogsProps): React.ReactEleme
       {!isAtBottom && (
         <button
           onClick={scrollToBottom}
-          className="absolute bottom-4 right-4 bg-accent text-white text-xs px-3 py-1.5 rounded-full shadow-lg hover:bg-accent-bright transition-colors"
+          className="absolute bottom-4 right-4 bg-accent text-white text-xs px-3 py-1.5 rounded-none hover:bg-accent-bright transition-colors"
         >
           Jump to bottom
         </button>

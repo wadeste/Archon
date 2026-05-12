@@ -54,7 +54,7 @@ export function ProjectSelector({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-4">
-        <span className="text-xs text-text-tertiary">Loading...</span>
+        <span className="font-mono text-xs text-[var(--text-tertiary)]">Loading...</span>
       </div>
     );
   }
@@ -62,9 +62,11 @@ export function ProjectSelector({
   if (projects.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-6">
-        <FolderGit2 className="h-8 w-8 text-text-tertiary" />
-        <span className="text-xs text-text-tertiary">No projects yet</span>
-        <span className="text-[10px] text-text-tertiary">Click + to add a repository</span>
+        <FolderGit2 className="h-8 w-8 text-[var(--text-tertiary)]" />
+        <span className="font-mono text-xs text-[var(--text-tertiary)]">No projects yet</span>
+        <span className="font-mono text-[10px] text-[var(--text-tertiary)]">
+          Click + to add a repository
+        </span>
       </div>
     );
   }
@@ -78,47 +80,57 @@ export function ProjectSelector({
   if (filteredProjects.length === 0) {
     return (
       <div className="flex items-center justify-center py-4">
-        <span className="text-xs text-text-tertiary">No matching projects</span>
+        <span className="font-mono text-xs text-[var(--text-tertiary)]">No matching projects</span>
       </div>
     );
   }
 
   return (
     <>
-      <div className="flex flex-col gap-0.5 mt-1">
+      <ul className="flex flex-col mt-1 list-none m-0 p-0">
         {/* All Projects option */}
-        <button
-          onClick={(): void => {
-            onSelectProject(null);
-          }}
-          className={cn(
-            'flex items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors w-full',
-            selectedProjectId === null
-              ? 'border-l-2 border-primary bg-accent-muted text-primary'
-              : 'text-text-secondary hover:bg-surface-elevated hover:text-text-primary'
-          )}
-        >
-          <FolderGit2 className="h-4 w-4 shrink-0" />
-          <span className="text-sm">All Projects</span>
-        </button>
+        <li className="border-b-[3px] border-black last:border-b-0">
+          <button
+            onClick={(): void => {
+              onSelectProject(null);
+            }}
+            className={cn(
+              'flex items-center gap-2 px-3 py-3 text-left transition-colors w-full font-sans text-sm',
+              selectedProjectId === null ? 'bg-black text-white' : 'text-black hover:underline'
+            )}
+          >
+            <FolderGit2 className="h-4 w-4 shrink-0" />
+            <span>All Projects</span>
+          </button>
+        </li>
         {filteredProjects.map(project => (
-          <div key={project.id} className="group relative">
+          <li
+            key={project.id}
+            className="group relative border-b-[3px] border-black last:border-b-0"
+          >
             <button
               onClick={(): void => {
                 onSelectProject(project.id);
               }}
               className={cn(
-                'flex items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors w-full',
+                'flex items-center gap-2 px-3 py-3 text-left transition-colors w-full font-sans text-sm',
                 selectedProjectId === project.id
-                  ? 'border-l-2 border-primary bg-accent-muted text-primary'
-                  : 'text-text-secondary hover:bg-surface-elevated hover:text-text-primary'
+                  ? 'bg-black text-white'
+                  : 'text-black hover:underline'
               )}
             >
               <FolderGit2 className="h-4 w-4 shrink-0" />
               <div className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-sm">{project.name}</span>
+                <span className="truncate">{project.name}</span>
                 {project.repository_url && (
-                  <span className="truncate text-[10px] text-text-tertiary">
+                  <span
+                    className={cn(
+                      'truncate font-mono text-[10px]',
+                      selectedProjectId === project.id
+                        ? 'text-white/70'
+                        : 'text-[var(--text-tertiary)]'
+                    )}
+                  >
                     {project.repository_url}
                   </span>
                 )}
@@ -130,14 +142,14 @@ export function ProjectSelector({
                 setDeleteError(null);
                 setDeleteTarget(project);
               }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-surface-elevated"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-none border-[2px] border-transparent invisible group-hover:visible transition-colors hover:border-black"
               title="Remove project"
             >
-              <Trash2 className="h-3.5 w-3.5 text-text-tertiary hover:text-error" />
+              <Trash2 className="h-3.5 w-3.5 text-[#ff0000]" />
             </button>
-          </div>
+          </li>
         ))}
-      </div>
+      </ul>
 
       <AlertDialog
         open={deleteTarget !== null}
@@ -156,7 +168,7 @@ export function ProjectSelector({
               workspace directory and worktrees. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {deleteError && <p className="text-sm text-error px-1">{deleteError}</p>}
+          {deleteError && <p className="font-mono text-sm text-[#ff0000] px-1">{deleteError}</p>}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete}>Remove</AlertDialogAction>

@@ -65,18 +65,18 @@ export function AllConversationsView({
     <div className="flex flex-col gap-3">
       <button
         onClick={handleNewChat}
-        className="mx-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-accent-hover transition-colors"
+        className="mx-1 rounded-none border-[3px] border-black bg-black px-3 py-2 font-sans text-xs font-semibold uppercase tracking-[0.125em] text-white transition-colors hover:bg-white hover:text-black active:border-[5px]"
       >
         New Chat
       </button>
 
       <div>
-        <span className="px-1 text-[11px] font-semibold uppercase tracking-wider text-text-tertiary">
+        <span className="px-1 font-display text-xs uppercase tracking-[0.1em] text-black">
           All Conversations
         </span>
-        <div className="mt-1 flex flex-col gap-0.5">
+        <div className="mt-1 flex flex-col">
           {isErrorConversations ? (
-            <span className="px-1 text-xs text-error">Failed to load — retrying</span>
+            <span className="px-1 font-mono text-xs text-[#ff0000]">Failed to load — retrying</span>
           ) : filtered && filtered.length > 0 ? (
             filtered.map(conv => (
               <ConversationItem
@@ -87,7 +87,7 @@ export function AllConversationsView({
               />
             ))
           ) : (
-            <span className="px-1 text-xs text-text-tertiary">
+            <span className="px-1 font-mono text-xs text-[var(--text-tertiary)]">
               {conversations && conversations.length > 0
                 ? 'No matching conversations'
                 : 'No conversations yet — start a new chat!'}

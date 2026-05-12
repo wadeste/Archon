@@ -620,7 +620,7 @@ export function WorkflowLogs({
     return (
       <div className="flex flex-1 items-center justify-center">
         <div className="flex flex-col items-center gap-3 text-text-tertiary">
-          <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+          <span className="inline-block h-6 w-6 animate-spin rounded-none border-2 border-accent border-t-transparent" />
           <p className="text-sm">Loading workflow logs...</p>
         </div>
       </div>
@@ -631,7 +631,7 @@ export function WorkflowLogs({
     <div className="flex flex-col flex-1 overflow-hidden min-h-0">
       {isRunning && currentlyExecuting && (
         <div className="px-4 py-2 bg-surface-secondary border-b border-border flex items-center gap-2 text-sm shrink-0">
-          <span className="inline-block w-2 h-2 rounded-full bg-accent animate-pulse" />
+          <span className="inline-block w-2 h-2 rounded-none bg-accent animate-pulse" />
           <span className="text-text-secondary">Currently executing:</span>
           <span className="font-medium text-text-primary">{currentlyExecuting.nodeName}</span>
           <span className="text-text-tertiary text-xs">

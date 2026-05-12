@@ -77,7 +77,7 @@ export function BuilderToolbar({
             onChange={(e): void => {
               if (e.target.value) onLoadWorkflow(e.target.value);
             }}
-            className="rounded-md border border-border bg-surface px-1.5 py-1 text-xs text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent w-[72px] shrink-0"
+            className="rounded-none border border-border bg-surface px-1.5 py-1 text-xs text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent w-[72px] shrink-0"
             title={
               workflowsError
                 ? 'Failed to load workflows — check server connection'
@@ -111,11 +111,11 @@ export function BuilderToolbar({
                 onNameChange(e.target.value);
               }}
               placeholder="workflow-name"
-              className="min-w-[80px] max-w-[160px] rounded-md border border-transparent hover:border-border focus:border-border bg-transparent px-1.5 py-0.5 text-xs font-medium text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent"
+              className="min-w-[80px] max-w-[160px] rounded-none border border-transparent hover:border-border focus:border-border bg-transparent px-1.5 py-0.5 text-xs font-medium text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent"
             />
             {hasUnsavedChanges && (
               <span
-                className="w-1.5 h-1.5 rounded-full bg-warning shrink-0"
+                className="w-1.5 h-1.5 rounded-none bg-warning shrink-0"
                 title="Unsaved changes"
               />
             )}
@@ -134,7 +134,7 @@ export function BuilderToolbar({
               }}
               autoFocus
               placeholder="Description..."
-              className="w-48 rounded-md border border-border bg-surface px-2 py-0.5 text-xs text-text-secondary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent"
+              className="w-48 rounded-none border border-border bg-surface px-2 py-0.5 text-xs text-text-secondary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent"
             />
           ) : (
             <button
@@ -150,7 +150,7 @@ export function BuilderToolbar({
           )}
 
           {/* Mode badge */}
-          <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider shrink-0 bg-node-command/20 text-node-command">
+          <span className="rounded-none px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider shrink-0 bg-node-command/20 text-node-command">
             DAG
           </span>
         </div>
@@ -162,7 +162,7 @@ export function BuilderToolbar({
             onChange={(e): void => {
               onProviderChange(e.target.value || undefined);
             }}
-            className="rounded-md border border-border bg-surface px-1.5 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+            className="rounded-none border border-border bg-surface px-1.5 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
           >
             <option value="">Provider</option>
             {providers.map(p => (
@@ -179,14 +179,14 @@ export function BuilderToolbar({
               onModelChange(e.target.value || undefined);
             }}
             placeholder="Model"
-            className="w-20 rounded-md border border-border bg-surface px-1.5 py-1 text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent"
+            className="w-20 rounded-none border border-border bg-surface px-1.5 py-1 text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent"
           />
         </div>
 
         {/* Right group: View toggle + Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
           {/* View toggle */}
-          <div className="flex rounded-md border border-border overflow-hidden">
+          <div className="flex rounded-none border border-border overflow-hidden">
             {VIEW_MODE_LABELS.map(({ value, label }) => (
               <button
                 key={value}
@@ -208,7 +208,7 @@ export function BuilderToolbar({
 
           {/* Validation errors badge */}
           {validationErrors.length > 0 && (
-            <span className="rounded-full bg-error/20 text-error px-1.5 py-0.5 text-[10px] font-medium">
+            <span className="rounded-none bg-error/20 text-error px-1.5 py-0.5 text-[10px] font-medium">
               {validationErrors.length}
             </span>
           )}

@@ -66,7 +66,7 @@ function StatusBadge({ status }: { status: string }): React.ReactElement {
   };
   return (
     <span
-      className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors[status] ?? 'bg-surface text-text-secondary'}`}
+      className={`px-2 py-0.5 rounded-none text-xs font-medium ${colors[status] ?? 'bg-surface text-text-secondary'}`}
     >
       {status}
     </span>
@@ -554,7 +554,7 @@ export function WorkflowExecution({ runId }: WorkflowExecutionProps): React.Reac
               />
             ) : (
               <div className="flex items-center justify-center h-full text-text-secondary">
-                <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent mr-2" />
+                <span className="inline-block h-5 w-5 animate-spin rounded-none border-2 border-accent border-t-transparent mr-2" />
                 Loading graph...
               </div>
             )}

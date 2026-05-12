@@ -18,18 +18,18 @@ export interface ExecutionNodeData extends DagNodeData {
 export type ExecutionFlowNode = Node<ExecutionNodeData>;
 
 const STATUS_STYLES: Partial<Record<WorkflowStepStatus, string>> = {
-  completed: 'border-l-2 border-success bg-success/5',
-  running: 'border-l-2 border-accent-bright bg-accent/5 shadow-[0_0_8px_var(--accent)]',
-  failed: 'border-l-2 border-error bg-error/5',
-  skipped: 'opacity-50 border-l-2 border-border',
+  completed: 'border-l-[5px] border-[#008000]',
+  running: 'border-l-[5px] border-black',
+  failed: 'border-l-[5px] border-[#ff0000]',
+  skipped: 'border-l-[5px] border-[#cccccc] text-[var(--text-tertiary)]',
 };
-const DEFAULT_STYLE = 'border-l-2 border-border bg-surface-elevated';
+const DEFAULT_STYLE = 'border-l-[5px] border-black';
 
 const TYPE_COLORS: Record<string, string> = {
-  command: 'text-purple-400',
-  prompt: 'text-accent-bright',
-  bash: 'text-amber-400',
-  loop: 'text-orange-400',
+  command: 'text-black',
+  prompt: 'text-[#ff0000]',
+  bash: 'text-[#ffa500]',
+  loop: 'text-[#008000]',
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -45,36 +45,36 @@ function ExecutionDagNodeRender({ data }: NodeProps<ExecutionFlowNode>): React.R
 
   return (
     <div
-      className={`rounded-lg border border-border px-3 py-2 min-w-[140px] transition-all duration-300 ${style}${data.selected ? ' ring-2 ring-accent-bright' : ''}`}
+      className={`rounded-none border-[3px] border-black bg-white px-3 py-2 min-w-[140px] transition-all duration-300 ${style}${data.selected ? ' border-[5px]' : ''}`}
     >
-      <Handle type="target" position={Position.Top} className="!bg-border !w-2 !h-2" />
+      <Handle type="target" position={Position.Top} className="!bg-black !w-2 !h-2" />
       <div className="flex items-center gap-2">
         <StatusIcon status={data.status ?? 'pending'} />
         <span
-          className={`text-[10px] font-medium ${TYPE_COLORS[data.nodeType] ?? 'text-text-tertiary'}`}
+          className={`font-display text-[10px] uppercase tracking-[0.05em] ${TYPE_COLORS[data.nodeType] ?? 'text-black'}`}
         >
           {typeLabel}
         </span>
-        <span className="text-xs font-medium text-text-primary truncate max-w-[100px]">
+        <span className="font-sans text-xs font-semibold text-black truncate max-w-[100px]">
           {data.label}
         </span>
         {data.duration !== undefined && (
-          <span className="text-[10px] text-text-tertiary ml-auto shrink-0">
+          <span className="font-mono text-[10px] text-[var(--text-tertiary)] ml-auto shrink-0">
             {formatDurationMs(data.duration)}
           </span>
         )}
       </div>
       {data.currentIteration !== undefined && data.maxIterations !== undefined && (
-        <div className="text-[10px] text-text-tertiary mt-0.5">
+        <div className="font-mono text-[10px] text-[var(--text-tertiary)] mt-0.5">
           {data.currentIteration}/{data.maxIterations} iterations
         </div>
       )}
       {data.error && (
-        <div className="text-[10px] text-error mt-1 truncate" title={data.error}>
+        <div className="font-mono text-[10px] text-[#ff0000] mt-1 truncate" title={data.error}>
           {data.error.slice(0, 60)}
         </div>
       )}
-      <Handle type="source" position={Position.Bottom} className="!bg-border !w-2 !h-2" />
+      <Handle type="source" position={Position.Bottom} className="!bg-black !w-2 !h-2" />
     </div>
   );
 }

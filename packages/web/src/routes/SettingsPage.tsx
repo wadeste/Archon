@@ -26,7 +26,7 @@ import type {
 } from '@/lib/api';
 
 const selectClass =
-  'h-9 rounded-md border border-border bg-surface-elevated text-text-primary px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring [&>option]:bg-surface-elevated [&>option]:text-text-primary';
+  'h-9 rounded-none border border-border bg-surface-elevated text-text-primary px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring [&>option]:bg-surface-elevated [&>option]:text-text-primary';
 
 function SystemHealthSection({
   health,
@@ -302,7 +302,7 @@ function ProjectsSection(): React.ReactElement {
         ) : (
           <div className="space-y-2">
             {codebases.map((cb: CodebaseResponse) => (
-              <div key={cb.id} className="rounded-md border border-border p-2 text-sm">
+              <div key={cb.id} className="rounded-none border border-border p-2 text-sm">
                 <div className="flex items-center justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="font-medium truncate">{cb.name}</div>
@@ -572,7 +572,7 @@ function AssistantConfigSection({ config }: { config: SafeConfigResponse }): Rea
               }
 
               return (
-                <div key={provider.id} className="rounded-md border border-border p-3 text-sm">
+                <div key={provider.id} className="rounded-none border border-border p-3 text-sm">
                   <div className="font-medium">{provider.displayName}</div>
                   <div className="mt-1 text-muted-foreground">
                     Provider-specific settings are stored generically for Phase 2. This provider
@@ -659,9 +659,9 @@ function ConcurrencySection({
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
+          <div className="h-3 w-full rounded-none bg-muted overflow-hidden">
             <div
-              className="h-full rounded-full bg-primary transition-all"
+              className="h-full rounded-none bg-primary transition-all"
               style={{ width: `${String(pct)}%` }}
             />
           </div>

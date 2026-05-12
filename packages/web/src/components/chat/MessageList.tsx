@@ -34,12 +34,7 @@ function makeResultMarkdownComponents(
 ): Components {
   return {
     a: ({ children, ...props }: React.ComponentPropsWithoutRef<'a'>): React.ReactElement => (
-      <a
-        className="text-primary underline decoration-primary/40 hover:decoration-primary"
-        target="_blank"
-        rel="noopener noreferrer"
-        {...props}
-      >
+      <a className="text-[#0000ff] underline" target="_blank" rel="noopener noreferrer" {...props}>
         {children}
       </a>
     ),
@@ -76,7 +71,7 @@ function makeResultMarkdownComponents(
               }
               target={filename.endsWith('.md') ? undefined : '_blank'}
               rel={filename.endsWith('.md') ? undefined : 'noopener noreferrer'}
-              className="!text-accent-bright hover:!text-primary font-mono font-medium underline decoration-accent-bright/40 hover:decoration-accent-bright"
+              className="text-[#0000ff] font-mono font-medium underline"
             >
               {displayName}
             </a>
@@ -84,7 +79,10 @@ function makeResultMarkdownComponents(
         }
       }
       return (
-        <code className="rounded bg-surface-elevated px-1 py-0.5 font-mono text-[0.9em]" {...props}>
+        <code
+          className="rounded-none border-[1px] border-black bg-[#f0f0f0] px-1 py-0.5 font-mono text-[0.9em]"
+          {...props}
+        >
           {children}
         </code>
       );
@@ -202,21 +200,21 @@ function WorkflowResultCard({
 
   return (
     <>
-      <div className="rounded-lg border border-border bg-surface overflow-hidden max-w-3xl">
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-surface-elevated">
+      <div className="rounded-none border-[3px] border-black bg-white overflow-hidden max-w-3xl">
+        <div className="flex items-center gap-2 px-3 py-2 border-b-[3px] border-black bg-[#f0f0f0]">
           <span className="shrink-0">
             <StatusIcon status={fetchFailed ? 'completed' : status} />
           </span>
-          <span className="text-xs font-medium text-text-primary truncate flex-1">
+          <span className="font-display text-xs uppercase tracking-[0.05em] text-black truncate flex-1">
             {headerTitle}: {workflowName}
           </span>
           {!fetchFailed && totalCount > 0 && (
-            <span className="shrink-0 text-[10px] text-text-secondary">
+            <span className="shrink-0 font-mono text-[10px] text-[var(--text-secondary)]">
               {completedCount}/{totalCount} nodes
             </span>
           )}
           {!fetchFailed && duration != null && (
-            <span className="rounded-full bg-surface px-2 py-0.5 text-[10px] text-text-secondary shrink-0">
+            <span className="rounded-none border-[2px] border-black bg-white px-2 py-0.5 font-mono text-[10px] text-black shrink-0">
               {formatDurationMs(duration)}
             </span>
           )}
@@ -224,7 +222,7 @@ function WorkflowResultCard({
             onClick={(): void => {
               navigate(`/workflows/runs/${runId}`);
             }}
-            className="text-[10px] text-primary hover:text-accent-bright transition-colors shrink-0"
+            className="font-sans text-[10px] font-semibold uppercase tracking-[0.05em] text-black hover:underline transition-colors shrink-0"
           >
             View full logs &rarr;
           </button>
@@ -235,7 +233,7 @@ function WorkflowResultCard({
               <ArtifactSummary artifacts={artifacts} runId={runId} />
             </div>
           )}
-          <div className="chat-markdown text-xs text-text-secondary">
+          <div className="chat-markdown text-xs text-black">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
               {displayContent}
             </ReactMarkdown>
@@ -245,7 +243,7 @@ function WorkflowResultCard({
               onClick={(): void => {
                 setExpanded(!expanded);
               }}
-              className="mt-1 text-[10px] text-primary hover:text-accent-bright transition-colors"
+              className="mt-1 font-sans text-[10px] font-semibold uppercase tracking-[0.05em] text-black hover:underline transition-colors"
             >
               {expanded ? 'Show less' : 'Show more'}
             </button>
@@ -329,8 +327,8 @@ function MessageListRaw({
         <div className="flex flex-1 items-center justify-center">
           <div className="flex flex-col items-center gap-4 max-w-sm w-full px-4">
             <div className="flex flex-col items-center gap-2 text-center">
-              <Sparkles className="h-8 w-8 text-primary" />
-              <h2 className="text-base font-semibold text-text-primary">
+              <Sparkles className="h-8 w-8 text-black" />
+              <h2 className="font-display text-5xl leading-[1.05] uppercase text-black">
                 What would you like to do?
               </h2>
             </div>
@@ -354,7 +352,9 @@ function MessageListRaw({
               </Button>
             </div>
             {projectName && (
-              <p className="text-xs text-text-tertiary text-center">Project: {projectName}</p>
+              <p className="font-mono text-xs text-[var(--text-tertiary)] text-center">
+                Project: {projectName}
+              </p>
             )}
           </div>
         </div>
@@ -362,9 +362,11 @@ function MessageListRaw({
     }
     return (
       <div className="flex flex-1 items-center justify-center">
-        <div className="flex flex-col items-center gap-3 text-text-tertiary">
+        <div className="flex flex-col items-center gap-3 text-[var(--text-tertiary)]">
           <MessageSquare className="h-10 w-10" />
-          <p className="text-sm">Send a message to start chatting</p>
+          <p className="font-sans text-sm uppercase tracking-[0.05em]">
+            Send a message to start chatting
+          </p>
         </div>
       </div>
     );
@@ -379,11 +381,11 @@ function MessageListRaw({
               <div
                 key={msg.id}
                 data-timestamp={String(msg.timestamp)}
-                className="flex items-center justify-center gap-2 py-1 text-xs text-muted-foreground"
+                className="flex items-center justify-center gap-2 py-1 font-sans text-xs uppercase tracking-[0.05em] text-[var(--text-secondary)]"
               >
-                <span className="h-px flex-1 bg-border" />
+                <span className="h-[3px] flex-1 bg-black" />
                 <span>{msg.content}</span>
-                <span className="h-px flex-1 bg-border" />
+                <span className="h-[3px] flex-1 bg-black" />
               </div>
             ) : (
               <div
@@ -421,12 +423,7 @@ function MessageListRaw({
       {/* Jump to bottom button */}
       {!isAtBottom && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
-          <Button
-            onClick={scrollToBottom}
-            size="sm"
-            variant="secondary"
-            className="rounded-full bg-surface-elevated shadow-lg"
-          >
+          <Button onClick={scrollToBottom} size="sm" variant="default">
             <ArrowDown className="mr-1 h-3 w-3" />
             Jump to bottom
           </Button>

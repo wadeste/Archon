@@ -53,11 +53,11 @@ export function CommandPicker({
   return (
     <div
       ref={containerRef}
-      className="w-72 max-h-96 bg-surface-elevated border border-border rounded-lg shadow-lg overflow-hidden flex flex-col"
+      className="w-72 max-h-96 bg-surface-elevated border border-border rounded-none overflow-hidden flex flex-col"
     >
       {/* Search input */}
       <div className="px-3 py-2 border-b border-border">
-        <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-surface-inset border border-border">
+        <div className="flex items-center gap-2 px-2 py-1.5 rounded-none bg-surface-inset border border-border">
           <Search className="size-3.5 text-text-tertiary shrink-0" />
           <input
             ref={inputRef}

@@ -19,11 +19,11 @@ function RunStatusBadge({ status }: { status: string }): React.ReactElement {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium',
-        status === 'running' && 'bg-primary/10 text-primary',
-        status === 'completed' && 'bg-success/10 text-success',
-        status === 'failed' && 'bg-error/10 text-error',
-        status === 'cancelled' && 'bg-surface-elevated text-text-secondary'
+        'inline-flex items-center rounded-none border-[2px] bg-white px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-[0.045em]',
+        status === 'running' && 'border-black text-black',
+        status === 'completed' && 'border-[#008000] text-[#008000]',
+        status === 'failed' && 'border-[#ff0000] text-[#ff0000]',
+        status === 'cancelled' && 'border-[#cccccc] text-[var(--text-secondary)]'
       )}
     >
       {status}
@@ -107,15 +107,19 @@ export function ProjectDetail({
   return (
     <div className="min-w-0 flex flex-col gap-3">
       <div className="px-1">
-        <h3 className="text-sm font-semibold text-text-primary truncate">{projectName}</h3>
+        <h3 className="font-display text-sm uppercase tracking-[0.05em] text-black truncate">
+          {projectName}
+        </h3>
         {repositoryUrl && (
-          <p className="text-[10px] text-text-tertiary truncate">{repositoryUrl}</p>
+          <p className="font-mono text-[10px] text-[var(--text-tertiary)] truncate">
+            {repositoryUrl}
+          </p>
         )}
       </div>
 
       <button
         onClick={handleNewChat}
-        className="mx-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-accent-hover transition-colors"
+        className="mx-1 rounded-none border-[3px] border-black bg-black px-3 py-2 font-sans text-xs font-semibold uppercase tracking-[0.125em] text-white transition-colors hover:bg-white hover:text-black active:border-[5px]"
       >
         New Chat
       </button>
@@ -124,12 +128,12 @@ export function ProjectDetail({
 
       {/* Conversations section */}
       <div>
-        <span className="px-1 text-[11px] font-semibold uppercase tracking-wider text-text-tertiary">
+        <span className="px-1 font-display text-xs uppercase tracking-[0.1em] text-black">
           Conversations
         </span>
-        <div className="mt-1 flex flex-col gap-0.5">
+        <div className="mt-1 flex flex-col">
           {isErrorConversations ? (
-            <span className="px-1 text-xs text-error">Failed to load — retrying</span>
+            <span className="px-1 font-mono text-xs text-[#ff0000]">Failed to load — retrying</span>
           ) : filteredConversations && filteredConversations.length > 0 ? (
             filteredConversations.map(conv => (
               <ConversationItem
@@ -139,19 +143,21 @@ export function ProjectDetail({
               />
             ))
           ) : (
-            <span className="px-1 text-xs text-text-tertiary">No conversations</span>
+            <span className="px-1 font-mono text-xs text-[var(--text-tertiary)]">
+              No conversations
+            </span>
           )}
         </div>
       </div>
 
       {/* Workflow runs section */}
       <div>
-        <span className="px-1 text-[11px] font-semibold uppercase tracking-wider text-text-tertiary">
+        <span className="px-1 font-display text-xs uppercase tracking-[0.1em] text-black">
           Workflow Runs
         </span>
-        <div className="mt-1 flex flex-col gap-0.5">
+        <div className="mt-1 flex flex-col">
           {isErrorRuns ? (
-            <span className="px-1 text-xs text-error">Failed to load — retrying</span>
+            <span className="px-1 font-mono text-xs text-[#ff0000]">Failed to load — retrying</span>
           ) : sortedRuns && sortedRuns.length > 0 ? (
             sortedRuns.map(run => (
               <button
@@ -159,17 +165,19 @@ export function ProjectDetail({
                 onClick={(): void => {
                   handleRunClick(run);
                 }}
-                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-surface-elevated transition-colors w-full text-left"
+                className="flex items-center gap-2 rounded-none border-b-[1px] border-black px-2 py-2 font-sans text-xs hover:bg-black hover:text-white last:border-b-0 w-full text-left transition-colors"
               >
-                <span className="truncate flex-1 text-text-primary">{run.workflow_name}</span>
+                <span className="truncate flex-1">{run.workflow_name}</span>
                 <RunStatusBadge status={run.status} />
-                <span className="text-text-tertiary shrink-0">
+                <span className="font-mono text-[var(--text-tertiary)] shrink-0">
                   {formatDuration(run.started_at, run.completed_at)}
                 </span>
               </button>
             ))
           ) : (
-            <span className="px-1 text-xs text-text-tertiary">No workflow runs</span>
+            <span className="px-1 font-mono text-xs text-[var(--text-tertiary)]">
+              No workflow runs
+            </span>
           )}
         </div>
       </div>
@@ -177,22 +185,24 @@ export function ProjectDetail({
       {/* Active worktrees section */}
       {(isErrorEnvironments || activeEnvironments.length > 0) && (
         <div>
-          <span className="px-1 text-[11px] font-semibold uppercase tracking-wider text-text-tertiary">
+          <span className="px-1 font-display text-xs uppercase tracking-[0.1em] text-black">
             Active Worktrees{!isErrorEnvironments && ` (${String(activeEnvironments.length)})`}
           </span>
-          <div className="mt-1 flex flex-col gap-0.5">
+          <div className="mt-1 flex flex-col">
             {isErrorEnvironments ? (
-              <span className="px-1 text-xs text-error">Failed to load — retrying</span>
+              <span className="px-1 font-mono text-xs text-[#ff0000]">
+                Failed to load — retrying
+              </span>
             ) : (
               activeEnvironments.map((env: IsolationEnvironment) => (
                 <div
                   key={env.id}
-                  className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-xs"
+                  className="flex items-center justify-between gap-2 rounded-none border-b-[1px] border-black px-2 py-2 font-sans text-xs last:border-b-0"
                 >
-                  <span className="truncate font-mono text-[11px] text-text-primary">
+                  <span className="truncate font-mono text-[11px] text-black">
                     {env.branch_name}
                   </span>
-                  <span className="shrink-0 text-[10px] text-text-tertiary">
+                  <span className="shrink-0 font-mono text-[10px] text-[var(--text-tertiary)]">
                     {env.days_since_activity === 0
                       ? 'today'
                       : `${String(env.days_since_activity)}d ago`}

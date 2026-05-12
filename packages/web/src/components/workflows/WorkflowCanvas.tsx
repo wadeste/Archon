@@ -407,7 +407,7 @@ export function WorkflowCanvas({
       {contextMenu && (
         <div
           ref={contextMenuRef}
-          className="fixed z-50 min-w-[140px] rounded-md border border-border bg-surface-elevated py-1 shadow-md"
+          className="fixed z-50 min-w-[140px] rounded-none border border-border bg-surface-elevated py-1"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
           <button

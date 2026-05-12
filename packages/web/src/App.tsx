@@ -3,6 +3,7 @@ import type { ReactNode, ErrorInfo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Layout } from '@/components/layout/Layout';
+import { Button } from '@/components/ui/button';
 import { ProjectProvider } from '@/contexts/ProjectContext';
 import { queryClient } from '@/lib/query-client';
 import { DashboardPage } from '@/routes/DashboardPage';
@@ -38,20 +39,22 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
   render(): ReactNode {
     if (this.state.hasError) {
       return (
-        <div className="flex h-screen items-center justify-center bg-zinc-950 p-8">
+        <div className="flex h-screen items-center justify-center bg-white p-8">
           <div className="max-w-md text-center">
-            <h1 className="mb-2 text-xl font-semibold text-zinc-100">Something went wrong</h1>
-            <p className="mb-4 text-sm text-zinc-400">
+            <h1 className="mb-2 font-display text-2xl uppercase text-black">
+              Something went wrong
+            </h1>
+            <p className="mb-4 text-sm text-[#404040]">
               {this.state.error?.message ?? 'An unexpected error occurred.'}
             </p>
-            <button
+            <Button
+              variant="default"
               onClick={(): void => {
                 window.location.reload();
               }}
-              className="rounded-md bg-zinc-800 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700"
             >
               Reload page
-            </button>
+            </Button>
           </div>
         </div>
       );

@@ -74,7 +74,7 @@ export function StatusBar({
         {/* Unsaved indicator */}
         {hasUnsavedChanges && (
           <span className="flex items-center gap-1 text-warning">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-warning" />
+            <span className="inline-block h-1.5 w-1.5 rounded-none bg-warning" />
             Unsaved
           </span>
         )}

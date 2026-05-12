@@ -20,7 +20,7 @@ const REHYPE_PLUGINS = [rehypeHighlight];
 const MARKDOWN_COMPONENTS = {
   pre: ({ children, ...props }: React.ComponentPropsWithoutRef<'pre'>): React.ReactElement => (
     <pre
-      className="overflow-x-auto rounded-lg border border-border bg-surface p-4 font-mono text-sm"
+      className="overflow-x-auto rounded-none border border-border bg-surface p-4 font-mono text-sm"
       {...props}
     >
       {children}

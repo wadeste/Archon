@@ -45,12 +45,12 @@ export function ValidationPanel({
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-text-primary">Problems</span>
           {errorCount > 0 && (
-            <span className="inline-flex items-center justify-center rounded-full bg-error/20 px-1.5 py-0.5 text-[10px] font-medium text-error min-w-[18px]">
+            <span className="inline-flex items-center justify-center rounded-none bg-error/20 px-1.5 py-0.5 text-[10px] font-medium text-error min-w-[18px]">
               {errorCount}
             </span>
           )}
           {warningCount > 0 && (
-            <span className="inline-flex items-center justify-center rounded-full bg-warning/20 px-1.5 py-0.5 text-[10px] font-medium text-warning min-w-[18px]">
+            <span className="inline-flex items-center justify-center rounded-none bg-warning/20 px-1.5 py-0.5 text-[10px] font-medium text-warning min-w-[18px]">
               {warningCount}
             </span>
           )}

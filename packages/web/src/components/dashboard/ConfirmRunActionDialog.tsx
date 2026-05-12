@@ -90,7 +90,10 @@ export function ConfirmRunActionDialog({
         </AlertDialogHeader>
         {reasonInput && (
           <div className="space-y-2">
-            <label htmlFor={reasonInputId} className="text-sm font-medium text-foreground">
+            <label
+              htmlFor={reasonInputId}
+              className="block font-display text-sm uppercase tracking-[0.05em] text-black"
+            >
               {reasonInput.label}
             </label>
             <textarea
@@ -101,7 +104,7 @@ export function ConfirmRunActionDialog({
               }}
               placeholder={reasonInput.placeholder}
               rows={3}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="w-full rounded-none border-[3px] border-black bg-[#f0f0f0] px-3 py-2 font-mono text-sm text-black placeholder:text-[var(--text-tertiary)] outline-none focus-visible:border-[5px] focus-visible:-m-[2px]"
             />
           </div>
         )}

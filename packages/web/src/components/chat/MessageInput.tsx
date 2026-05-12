@@ -242,7 +242,7 @@ const messageInput = forwardRef<MessageInputHandle, MessageInputProps>(function 
 
   return (
     <div
-      className={`border-t border-border bg-surface p-4 transition-colors${dragging ? ' bg-primary/5' : ''}`}
+      className={`border-t-[3px] border-black bg-white p-4 transition-colors${dragging ? ' bg-[#f0f0f0]' : ''}`}
       title={disabledReason}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -255,18 +255,18 @@ const messageInput = forwardRef<MessageInputHandle, MessageInputProps>(function 
             {files.map(({ file, id }) => (
               <div
                 key={id}
-                className="flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs text-text-secondary"
+                className="flex items-center gap-1 rounded-none border-[2px] border-black bg-white px-2 py-1 font-mono text-xs text-black"
               >
                 <span className="max-w-[140px] truncate" title={file.name}>
                   {file.name}
                 </span>
-                <span className="text-text-tertiary">({formatBytes(file.size)})</span>
+                <span className="text-[var(--text-tertiary)]">({formatBytes(file.size)})</span>
                 <button
                   type="button"
                   onClick={() => {
                     removeFile(id);
                   }}
-                  className="ml-1 text-text-tertiary hover:text-text-primary"
+                  className="ml-1 text-black hover:underline"
                   aria-label={`Remove ${file.name}`}
                 >
                   <X className="h-3 w-3" />
@@ -277,7 +277,7 @@ const messageInput = forwardRef<MessageInputHandle, MessageInputProps>(function 
         )}
 
         {/* File error */}
-        {fileError !== null && <p className="text-xs text-destructive">{fileError}</p>}
+        {fileError !== null && <p className="font-mono text-xs text-[#ff0000]">{fileError}</p>}
 
         {/* Input row */}
         <div className="flex items-end gap-2">
@@ -295,11 +295,11 @@ const messageInput = forwardRef<MessageInputHandle, MessageInputProps>(function 
           {/* Attach button */}
           <Button
             type="button"
-            variant="ghost"
+            variant="secondary"
             size="icon"
             disabled={disabled || files.length >= MAX_FILES}
             onClick={() => fileInputRef.current?.click()}
-            className="h-10 w-10 shrink-0 text-text-tertiary hover:text-text-primary"
+            className="shrink-0"
             title="Attach file"
           >
             <Paperclip className="h-4 w-4" />
@@ -314,14 +314,15 @@ const messageInput = forwardRef<MessageInputHandle, MessageInputProps>(function 
             disabled={disabled}
             placeholder={dragging ? 'Drop files here...' : (disabledReason ?? 'Message Archon...')}
             rows={1}
-            className="flex-1 resize-none overflow-hidden rounded-lg border border-border bg-background px-4 py-2 text-sm leading-6 text-text-primary placeholder:text-text-tertiary focus:border-primary focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-            style={{ minHeight: '40px', maxHeight: '200px' }}
+            className="flex-1 resize-none overflow-hidden rounded-none border-[3px] border-black bg-[#f0f0f0] px-4 py-2 font-mono text-[15px] leading-[1.5] text-black placeholder:text-[var(--text-tertiary)] outline-none focus-visible:border-[5px] focus-visible:-m-[2px] disabled:cursor-not-allowed disabled:bg-[#f5f5f5] disabled:border-[#cccccc]"
+            style={{ minHeight: '44px', maxHeight: '200px' }}
           />
           <Button
             onClick={handleSend}
             disabled={disabled || !value.trim()}
             size="icon"
-            className="h-10 w-10 shrink-0 rounded-lg bg-primary text-primary-foreground hover:bg-accent-hover disabled:opacity-50"
+            variant="default"
+            className="shrink-0"
           >
             {disabled && !disabledReason ? (
               <Loader2 className="h-4 w-4 animate-spin" />

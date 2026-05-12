@@ -169,20 +169,22 @@ export function Sidebar(): React.ReactElement {
 
   return (
     <aside
-      className="relative flex h-full flex-col border-r border-border bg-surface"
+      className="relative flex h-full flex-col border-r-[3px] border-black bg-white"
       style={{ width: `${String(width)}px` }}
     >
       {/* Logo */}
       <div className="flex flex-col gap-3 p-4">
-        <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <span className="text-sm font-semibold text-primary-foreground">A</span>
+        <Link to="/" className="flex items-center gap-2 hover:underline">
+          <div className="flex h-8 w-8 items-center justify-center rounded-none bg-black">
+            <span className="font-display text-base text-white">A</span>
           </div>
-          <span className="text-base font-semibold text-text-primary">Archon</span>
+          <span className="font-display text-base uppercase tracking-[0.05em] text-black">
+            Archon
+          </span>
         </Link>
       </div>
 
-      <Separator className="bg-border" />
+      <Separator weight="thick" />
 
       {/* Search - always visible */}
       <div className="px-3 py-2">
@@ -198,19 +200,19 @@ export function Sidebar(): React.ReactElement {
       <div className="px-3 pb-2">
         <button
           onClick={handleNewOrchestratorChat}
-          className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-text-secondary hover:bg-surface-elevated hover:text-text-primary transition-colors"
+          className="flex w-full items-center gap-2 rounded-none px-3 py-1.5 font-sans text-sm font-semibold uppercase tracking-[0.05em] text-[var(--text-secondary)] transition-colors hover:text-black hover:underline"
         >
           <MessageSquarePlus className="h-4 w-4 shrink-0" />
           New Chat
         </button>
       </div>
 
-      <Separator className="bg-border" />
+      <Separator weight="thick" />
 
       {/* Collapsible Project Selector */}
       <div className="px-2 py-2">
         <div className="flex items-center justify-between px-1">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-tertiary">
+          <span className="font-display text-xs uppercase tracking-[0.1em] text-black">
             Projects
           </span>
           <button
@@ -219,10 +221,10 @@ export function Sidebar(): React.ReactElement {
               setAddError(null);
               setAddValue('');
             }}
-            className="p-1 rounded hover:bg-surface-elevated transition-colors"
+            className="p-1 rounded-none border-[2px] border-transparent hover:border-black transition-colors"
             title="Add project"
           >
-            <Plus className="h-4 w-4 text-text-tertiary hover:text-primary" />
+            <Plus className="h-4 w-4 text-black" />
           </button>
         </div>
 
@@ -237,27 +239,28 @@ export function Sidebar(): React.ReactElement {
                 }}
                 onKeyDown={handleAddKeyDown}
                 onBlur={(): void => {
-                  // Close on blur only if empty and no error
                   if (!addValue.trim() && !addError) {
                     setShowAddInput(false);
                   }
                 }}
                 placeholder="GitHub URL or local path"
                 disabled={addLoading}
-                className="w-full rounded-md border border-border bg-surface-elevated px-2 py-1 text-xs text-text-primary placeholder:text-text-tertiary focus:border-primary focus:outline-none disabled:opacity-50"
+                className="w-full rounded-none border-[3px] border-black bg-[#f0f0f0] px-2 py-1 font-mono text-xs text-black placeholder:text-[var(--text-tertiary)] outline-none disabled:bg-[#f5f5f5] disabled:border-[#cccccc] disabled:cursor-not-allowed"
               />
-              {addLoading && <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" />}
+              {addLoading && <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-black" />}
             </div>
-            {addError && <p className="mt-1 text-[10px] text-error line-clamp-2">{addError}</p>}
+            {addError && (
+              <p className="mt-1 font-mono text-[10px] text-[#ff0000] line-clamp-2">{addError}</p>
+            )}
           </div>
         )}
 
         <Collapsible open={projectsExpanded} onOpenChange={setProjectsExpanded}>
           {selectedProjectId && !projectsExpanded ? (
-            <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 mt-1 text-left text-sm text-primary hover:bg-surface-elevated transition-colors">
+            <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-none px-3 py-1.5 mt-1 text-left font-sans text-sm font-semibold text-black hover:underline transition-colors">
               <FolderGit2 className="h-4 w-4 shrink-0" />
               <span className="truncate flex-1">{selectedProject?.name ?? 'Project'}</span>
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-text-tertiary" />
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-black" />
             </CollapsibleTrigger>
           ) : (
             <CollapsibleTrigger className="hidden" />
@@ -273,7 +276,6 @@ export function Sidebar(): React.ReactElement {
               />
             </div>
           </CollapsibleContent>
-          {/* Show full list when no project selected (not inside collapsible content) */}
         </Collapsible>
         {!selectedProjectId && (
           <div className="max-h-[35vh] overflow-y-auto">
@@ -287,11 +289,13 @@ export function Sidebar(): React.ReactElement {
           </div>
         )}
         {isErrorCodebases && (
-          <p className="px-2 text-[10px] text-error mt-1">Failed to load projects — retrying</p>
+          <p className="px-2 font-mono text-[10px] text-[#ff0000] mt-1">
+            Failed to load projects — retrying
+          </p>
         )}
       </div>
 
-      <Separator className="bg-border" />
+      <Separator weight="thick" />
 
       {/* Project-scoped or all-conversations content */}
       {selectedProjectId ? (
@@ -316,7 +320,7 @@ export function Sidebar(): React.ReactElement {
       {/* Resize handle */}
       <div
         onMouseDown={handleMouseDown}
-        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize bg-border/50 hover:bg-primary/40 transition-colors"
+        className="absolute right-0 top-0 bottom-0 w-[3px] cursor-col-resize bg-black"
       />
     </aside>
   );

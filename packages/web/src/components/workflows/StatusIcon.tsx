@@ -6,7 +6,7 @@ export function StatusIcon({ status }: { status: string }): React.ReactElement {
       return <span className="text-success text-sm">&#x2713;</span>;
     case 'running':
       return (
-        <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+        <span className="inline-block h-3 w-3 animate-spin rounded-none border-2 border-accent border-t-transparent" />
       );
     case 'paused':
       return <Pause className="h-3 w-3 text-warning" />;
