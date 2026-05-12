@@ -15,8 +15,8 @@ const buttonVariants = cva(
           'bg-red-600 text-white border-[3px] border-black hover:bg-black hover:text-red-600 active:border-[5px]',
         outline: 'bg-white text-black border-[3px] border-black hover:bg-black hover:text-white',
         secondary: 'bg-white text-black border-[3px] border-black hover:bg-black hover:text-white',
-        ghost: 'bg-transparent text-black border-none underline hover:text-blue-600',
-        link: 'text-black underline uppercase tracking-wider',
+        ghost: 'bg-transparent text-black border-none underline hover:text-black',
+        link: 'text-[#0000FF] underline uppercase tracking-wider',
       },
       size: {
         default: 'px-6 py-3 text-sm',
