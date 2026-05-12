@@ -58,7 +58,7 @@ export function StatusSummaryBar({
           All: {String(counts.all)}
         </button>
         {STATUS_CHIPS.map(status => {
-          const count = counts[status];
+          const count = counts[status] ?? 0;
           const isActive = activeFilter === status;
           return (
             <button
