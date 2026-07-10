@@ -2,6 +2,7 @@
  * Zod schemas for workflow run state types.
  */
 import { z } from '@hono/zod-openapi';
+import { nodeFailureDetailSchema } from './node-failure';
 
 // ---------------------------------------------------------------------------
 // WorkflowRunStatus
@@ -53,6 +54,13 @@ export const nodeStateSchema = z.enum(['pending', 'running', 'completed', 'faile
 
 export type NodeState = z.infer<typeof nodeStateSchema>;
 
+export {
+  nodeFailureDetailSchema,
+  readNodeFailuresFromMetadata,
+  WORKFLOW_RUN_NODE_FAILURES_KEY,
+} from './node-failure';
+export type { NodeFailureDetail } from './node-failure';
+
 // ---------------------------------------------------------------------------
 // NodeOutput
 // ---------------------------------------------------------------------------
@@ -62,18 +70,25 @@ export type NodeState = z.infer<typeof nodeStateSchema>;
  * `output` is the concatenated assistant text (or JSON-encoded string from the SDK
  * when output_format is set). Empty string for failed/skipped nodes.
  * `error` is required when state is 'failed', absent on all other states.
+ * `structuredOutput` carries the provider's parsed structured payload (set by Pi/Codex/Claude
+ * when the result chunk includes one). Downstream `$nodeId.output.field` substitution and
+ * `when:` conditions prefer this object over re-parsing `output`, so providers that emit
+ * fence-wrapped or preamble-prefixed JSON (Pi/Minimax) survive the round-trip.
  */
 export const nodeOutputSchema = z.discriminatedUnion('state', [
   z.object({
     state: z.enum(['completed', 'running']),
     output: z.string(),
     sessionId: z.string().optional(),
+    structuredOutput: z.unknown().optional(),
   }),
   z.object({
     state: z.literal('failed'),
     output: z.string(),
     sessionId: z.string().optional(),
     error: z.string(),
+    structuredOutput: z.unknown().optional(),
+    failure: nodeFailureDetailSchema.optional(),
   }),
   z.object({
     state: z.enum(['pending', 'skipped']),
@@ -103,6 +118,7 @@ export const workflowRunSchema = z.object({
   completed_at: z.date().nullable(),
   last_activity_at: z.date().nullable(),
   working_path: z.string().nullable(),
+  user_id: z.string().nullable(),
 });
 
 export type WorkflowRun = z.infer<typeof workflowRunSchema>;

@@ -174,7 +174,6 @@ nodes:
   # ═══════════════════════════════════════════════════════════════
 
   - id: create-plan
-    model: sonnet
     depends_on: [explore]
     context: fresh
     prompt: |
@@ -411,7 +410,6 @@ nodes:
   - id: implement
     depends_on: [implement-setup]
     idle_timeout: 600000
-    model: claude-opus-4-6[1m]
     loop:
       prompt: |
         # PIV Loop — Implementation Agent
@@ -496,8 +494,11 @@ nodes:
 
         ## Phase 4: COMMIT — Save Changes
 
+        Stage **only** the files you edited for this PIV task — never `git add -A`, `git add .`, or `git add -u`. List them by name:
+
         ```bash
-        git add -A
+        git add path/to/file1 path/to/file2 ...
+        git status --porcelain  # verify nothing scratch/review/PR-body is staged
         git diff --cached --stat
         git commit -m "$(cat <<'EOF'
         {type}: {task description}
@@ -506,6 +507,8 @@ nodes:
         EOF
         )"
         ```
+
+        **Never stage**: `.pr-body.md`, `pr-body.md`, `*.scratch.md`, `*.tmp.md`, `review/`, `*-report.md` at the repo root, or anything under `$ARTIFACTS_DIR`.
 
         Track progress in `$ARTIFACTS_DIR/progress.txt`:
         ```
@@ -536,7 +539,6 @@ nodes:
   # ═══════════════════════════════════════════════════════════════
 
   - id: code-review
-    model: sonnet
     depends_on: [implement]
     context: fresh
     prompt: |
@@ -573,10 +575,14 @@ nodes:
 
       ## Step 5: Fix Obvious Issues
 
-      Fix type errors, lint warnings, missing imports, formatting. Commit any fixes:
+      Fix type errors, lint warnings, missing imports, formatting. Stage only the files you fixed — never `git add -A`. Skip the commit if there were no fixes:
       ```bash
-      git add -A && git commit -m "fix: address code review findings" || true
+      git add path/to/file1 path/to/file2 ...  # list real fixes only
+      git status --porcelain  # verify nothing scratch/review/PR-body is staged
+      git diff --cached --quiet || git commit -m "fix: address code review findings"
       ```
+
+      **Never stage**: `.pr-body.md`, `pr-body.md`, `*.scratch.md`, `*.tmp.md`, `review/`, `*-report.md` at the repo root, or anything under `$ARTIFACTS_DIR`.
 
       ## Step 6: Present Review
 
@@ -650,8 +656,11 @@ nodes:
 
         ## Step 4: Commit Fixes
 
+        Stage **only** the files you actually edited while addressing feedback — never `git add -A`. List them by name:
+
         ```bash
-        git add -A
+        git add path/to/file1 path/to/file2 ...
+        git status --porcelain  # verify nothing scratch/review/PR-body is staged
         git commit -m "$(cat <<'EOF'
         fix: address review feedback
 
@@ -661,6 +670,8 @@ nodes:
         EOF
         )"
         ```
+
+        **Never stage**: `.pr-body.md`, `pr-body.md`, `*.scratch.md`, `*.tmp.md`, `review/`, `*-report.md` at the repo root, or anything under `$ARTIFACTS_DIR`.
 
         ## Step 5: Report
 
@@ -687,7 +698,6 @@ nodes:
   # ═══════════════════════════════════════════════════════════════
 
   - id: finalize
-    model: sonnet
     depends_on: [fix-feedback]
     context: fresh
     prompt: |
@@ -768,3 +778,4 @@ nodes:
         echo "PR base verified: $EXPECTED"
       fi
     depends_on: [finalize]
+model: MiniMax-M2.7

@@ -135,6 +135,12 @@ export const dagNodeBaseSchema = z.object({
   when: z.string().optional(),
   trigger_rule: triggerRuleSchema.optional(),
   model: z.string().optional(),
+  /**
+   * Archon workflow-layer model routing: full provider/model path to switch to
+   * when the primary model fails or its circuit breaker is open.
+   * Distinct from `fallbackModel` (Claude SDK passthrough option below).
+   */
+  on_failure_model: z.string().min(1).optional(),
   provider: z.string().trim().min(1).optional(),
   context: z.enum(['fresh', 'shared']).optional(),
   output_format: z.record(z.unknown()).optional(),
@@ -158,10 +164,16 @@ export const dagNodeBaseSchema = z.object({
   effort: effortLevelSchema.optional(),
   thinking: thinkingConfigSchema.optional(),
   maxBudgetUsd: z.number().positive().optional(),
+  // YAML workflows: string-only. The wider SystemPromptInput (preset object) is used
+  // programmatically by the orchestrator for prompt caching; Zod intentionally stays narrow.
   systemPrompt: z.string().min(1).optional(),
   fallbackModel: z.string().min(1).optional(),
   betas: z.array(z.string().min(1)).nonempty("'betas' must be a non-empty array").optional(),
   sandbox: sandboxSettingsSchema.optional(),
+  // Opt out of resume caching: when true, this node re-runs on resume even if a
+  // prior run completed it successfully. Use for producers whose exit code does
+  // not capture output validity (e.g. bash that writes a file the consumer parses).
+  always_run: z.boolean().optional(),
 });
 
 export type DagNodeBase = z.infer<typeof dagNodeBaseSchema>;
@@ -336,6 +348,7 @@ export const BASH_NODE_AI_FIELDS: readonly string[] = [
   'thinking',
   'maxBudgetUsd',
   'systemPrompt',
+  'on_failure_model',
   'fallbackModel',
   'betas',
   'sandbox',
@@ -537,6 +550,7 @@ export const dagNodeSchema = dagNodeBaseSchema
       ...(data.when !== undefined ? { when: data.when } : {}),
       ...(data.trigger_rule !== undefined ? { trigger_rule: data.trigger_rule } : {}),
       ...(data.idle_timeout !== undefined ? { idle_timeout: data.idle_timeout } : {}),
+      ...(data.always_run !== undefined ? { always_run: data.always_run } : {}),
     };
 
     // Shared optional fields (valid on AI and bash nodes)
@@ -560,6 +574,7 @@ export const dagNodeSchema = dagNodeBaseSchema
       ...(data.thinking !== undefined ? { thinking: data.thinking } : {}),
       ...(data.maxBudgetUsd !== undefined ? { maxBudgetUsd: data.maxBudgetUsd } : {}),
       ...(data.systemPrompt !== undefined ? { systemPrompt: data.systemPrompt } : {}),
+      ...(data.on_failure_model !== undefined ? { on_failure_model: data.on_failure_model } : {}),
       ...(data.fallbackModel !== undefined ? { fallbackModel: data.fallbackModel } : {}),
       ...(data.betas !== undefined ? { betas: data.betas } : {}),
       ...(data.sandbox !== undefined ? { sandbox: data.sandbox } : {}),

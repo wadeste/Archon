@@ -2,6 +2,19 @@
 // @archon/workflows and @archon/core import from this subpath (@archon/providers/types).
 // HARD RULE: This file must never import SDK packages or other @archon/* packages.
 
+// ─── Error Classification ───────────────────────────────────────────────────
+// Single classifier shared by providers (SDK-level retry) and @archon/workflows
+// (node retry + circuit-breaker accounting). Pure functions, zero SDK deps —
+// safe to expose through the contract layer.
+
+export {
+  classifyError,
+  matchesPattern,
+  FATAL_PATTERNS,
+  TRANSIENT_PATTERNS,
+} from './shared/classify-error';
+export type { ErrorType } from './shared/classify-error';
+
 // ─── Provider Config Defaults ──────────────────────────────────────────────
 // Canonical definitions — @archon/core/config/config-types.ts imports from here.
 // Single source of truth for provider-specific config shapes.
@@ -9,8 +22,12 @@
 export interface ClaudeProviderDefaults {
   [key: string]: unknown;
   model?: string;
-  /** Claude Code settingSources — controls which CLAUDE.md files are loaded.
-   *  @default ['project']
+  /** Claude Code settingSources — controls which sources the SDK loads:
+   *  CLAUDE.md, skills, commands, agents, and hooks. Both project-level
+   *  (`<cwd>/.claude/`) and user-level (`~/.claude/`) are loaded by default.
+   *  Set explicitly to `['project']` to scope a workflow to project-only
+   *  resources (e.g. CI, shared environments).
+   *  @default ['project', 'user']
    */
   settingSources?: ('project' | 'user')[];
   /** Absolute path to the Claude Code SDK's `cli.js`. Required in compiled
@@ -32,7 +49,50 @@ export interface CodexProviderDefaults {
 }
 
 /**
- * Community provider defaults for Pi (@mariozechner/pi-coding-agent).
+ * Community provider defaults for GitHub Copilot (@github/copilot-sdk).
+ */
+export interface CopilotProviderDefaults {
+  [key: string]: unknown;
+  /** Default model ref, e.g. 'gpt-5', 'gpt-5-mini', 'claude-sonnet-4.5'. */
+  model?: string;
+  /**
+   * Reasoning effort passed to the SDK as `reasoningEffort`. Field name
+   * mirrors `CodexProviderDefaults.modelReasoningEffort` so users get one
+   * consistent key across cross-provider configs.
+   */
+  modelReasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh';
+  /**
+   * Absolute path to the Copilot CLI binary. Required in compiled Archon
+   * builds when `COPILOT_BIN_PATH` env var is not set. Dev-mode builds let
+   * the SDK resolve from `$PATH`.
+   */
+  copilotCliPath?: string;
+  /**
+   * Override Copilot's config directory. When unset the SDK uses its own
+   * default (typically `~/.copilot`).
+   */
+  configDir?: string;
+  /**
+   * Opt in to Copilot's config discovery from the repo (MCP servers, skills,
+   * etc. declared in the repo's `.copilot/` directory). Disabled by default
+   * so arbitrary repos do not implicitly load MCP servers or skills.
+   * @default false
+   */
+  enableConfigDiscovery?: boolean;
+  /**
+   * Reuse the CLI's logged-in user credentials (from `copilot login`) when
+   * no explicit token is provided via env vars. Defaults to true.
+   * @default true
+   */
+  useLoggedInUser?: boolean;
+  /**
+   * Copilot CLI log level. When unset the SDK picks its own default.
+   */
+  logLevel?: 'none' | 'error' | 'warning' | 'info' | 'debug' | 'all';
+}
+
+/**
+ * Community provider defaults for Pi (@earendil-works/pi-coding-agent).
  * v1 minimal shape; extend as capabilities are wired in.
  */
 export interface PiProviderDefaults {
@@ -80,6 +140,64 @@ export interface PiProviderDefaults {
    * @default undefined
    */
   env?: Record<string, string>;
+  /**
+   * Maximum number of concurrent Pi `session.prompt()` calls allowed.
+   * When this limit is reached, additional calls queue and wait rather than
+   * fail. Pi/Minimax does not throttle concurrent requests at the SDK layer
+   * (unlike the Claude SDK), so this prevents cascading 429/rate-limit failures
+   * when many parallel workflow nodes invoke Pi simultaneously.
+   *
+   * Set to a positive integer matching your Pi API tier's concurrency limit.
+   * Omit for unlimited (not recommended for production batches).
+   * @default undefined (unlimited)
+   */
+  maxConcurrent?: number;
+}
+/**
+ * Community provider defaults for OMP (@oh-my-pi/pi-coding-agent).
+ * Mirrors PiProviderDefaults — OMP has the same extension, env, and model config surface.
+ */
+export interface OmpProviderDefaults {
+  [key: string]: unknown;
+  /** Default model ref in '<provider-id>/<model-id>' format, e.g. 'anthropic/claude-opus-4-5'. */
+  model?: string;
+  /**
+   * Opt-in to OMP's extension discovery. When true, OMP loads from
+   * `~/.omp/agent/extensions/` and `<cwd>/.omp/extensions/`. The cwd scope
+   * loads arbitrary JS from the workflow's target repo — only enable on hosts
+   * you trust.
+   * @default false
+   */
+  enableExtensions?: boolean;
+  /**
+   * Bind an ExtensionUIContext so extensions see ctx.hasUI === true.
+   * @default false
+   */
+  interactive?: boolean;
+  /**
+   * Flag values passed to OMP's ExtensionRunner before session_start.
+   * @default undefined
+   */
+  extensionFlags?: Record<string, boolean | string>;
+  /**
+   * Environment variables injected into process.env at session start.
+   * @default undefined
+   */
+  env?: Record<string, string>;
+}
+
+/**
+ * Community provider defaults for OpenCode (opencode-ai).
+ * Minimal shape — extend as capabilities are wired in.
+ */
+export interface OpencodeProviderDefaults {
+  [key: string]: unknown;
+  /** Default model ref in '<provider>/<model>' format, e.g. 'anthropic/claude-3-5-sonnet' */
+  model?: string;
+  /** Base URL of an existing OpenCode server to connect to. */
+  baseUrl?: string;
+  /** Default agent name from opencode.json config to use. */
+  agent?: string;
 }
 
 /** Generic per-provider defaults bag used by config surfaces and UI. */
@@ -149,13 +267,27 @@ export type MessageChunk =
   | { type: 'workflow_dispatch'; workerConversationId: string; workflowName: string };
 
 /**
+ * System prompt input accepted by all providers. Mirrors the Claude Agent SDK
+ * preset-with-append shape so callers can opt into cacheable prefix behavior.
+ * Hand-written duplicate of the SDK type — see file-header rule forbidding SDK imports here.
+ */
+export interface SystemPromptPreset {
+  type: 'preset';
+  preset: 'claude_code';
+  append?: string;
+  excludeDynamicSections?: boolean;
+}
+
+export type SystemPromptInput = string | string[] | SystemPromptPreset;
+
+/**
  * Universal request options accepted by all providers.
  * Provider-specific fields go through `nodeConfig` and `assistantConfig` in SendQueryOptions.
  */
 export interface AgentRequestOptions {
   model?: string;
   abortSignal?: AbortSignal;
-  systemPrompt?: string;
+  systemPrompt?: SystemPromptInput;
   outputFormat?: { type: 'json_schema'; schema: Record<string, unknown> };
   env?: Record<string, string>;
   maxBudgetUsd?: number;
@@ -171,6 +303,8 @@ export interface AgentRequestOptions {
  * Providers translate fields they understand; unknown fields are ignored.
  */
 export interface NodeConfig {
+  /** Node ID from the workflow DAG — used by providers for per-node isolation (e.g., session dirs). */
+  nodeId?: string;
   mcp?: string;
   hooks?: unknown;
   skills?: string[];
@@ -208,7 +342,7 @@ export interface NodeConfig {
   betas?: string[];
   output_format?: Record<string, unknown>;
   maxBudgetUsd?: number;
-  systemPrompt?: string;
+  systemPrompt?: SystemPromptInput;
   fallbackModel?: string;
   idle_timeout?: number;
   [key: string]: unknown;

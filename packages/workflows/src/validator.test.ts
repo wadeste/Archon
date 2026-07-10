@@ -212,7 +212,7 @@ describe('validateWorkflowResources — MCP validation', () => {
     expect(mcpErrors).toHaveLength(0);
   });
 
-  test('warns when MCP used with codex provider', async () => {
+  test('does not warn when MCP is used with codex provider', async () => {
     const mcpPath = join(tmpDir, 'good.json');
     await writeFile(mcpPath, '{"server": {"command": "npx"}}');
     const workflow = makeWorkflow(
@@ -222,8 +222,7 @@ describe('validateWorkflowResources — MCP validation', () => {
     );
     const issues = await validateWorkflowResources(workflow, tmpDir);
     const mcpWarnings = issues.filter(i => i.field === 'mcp' && i.level === 'warning');
-    expect(mcpWarnings).toHaveLength(1);
-    expect(mcpWarnings[0].message).toContain('not supported by provider');
+    expect(mcpWarnings).toHaveLength(0);
   });
 });
 
@@ -274,15 +273,41 @@ describe('discoverAvailableCommands', () => {
   });
 
   test('returns sorted list', async () => {
-    await createCommandFile('zebra');
-    await createCommandFile('alpha');
-    const commands = await discoverAvailableCommands(tmpDir, { loadDefaultCommands: false });
-    expect(commands).toEqual(['alpha', 'zebra']);
+    // Hermetic: a real ~/.archon/commands/ on the dev machine would leak extra
+    // command names into the result. Point ARCHON_HOME at an empty dir.
+    const homeDir = await mkdtemp(join(tmpdir(), 'validator-home-'));
+    const originalArchonHome = process.env.ARCHON_HOME;
+    process.env.ARCHON_HOME = homeDir;
+    try {
+      await createCommandFile('zebra');
+      await createCommandFile('alpha');
+      const commands = await discoverAvailableCommands(tmpDir, { loadDefaultCommands: false });
+      expect(commands).toEqual(['alpha', 'zebra']);
+    } finally {
+      if (originalArchonHome === undefined) {
+        delete process.env.ARCHON_HOME;
+      } else {
+        process.env.ARCHON_HOME = originalArchonHome;
+      }
+      await rm(homeDir, { recursive: true, force: true });
+    }
   });
 
   test('returns empty array when no commands directory', async () => {
-    const commands = await discoverAvailableCommands(tmpDir, { loadDefaultCommands: false });
-    expect(commands).toEqual([]);
+    const homeDir = await mkdtemp(join(tmpdir(), 'validator-home-'));
+    const originalArchonHome = process.env.ARCHON_HOME;
+    process.env.ARCHON_HOME = homeDir;
+    try {
+      const commands = await discoverAvailableCommands(tmpDir, { loadDefaultCommands: false });
+      expect(commands).toEqual([]);
+    } finally {
+      if (originalArchonHome === undefined) {
+        delete process.env.ARCHON_HOME;
+      } else {
+        process.env.ARCHON_HOME = originalArchonHome;
+      }
+      await rm(homeDir, { recursive: true, force: true });
+    }
   });
 
   test('loadDefaultCommands: false suppresses bundled commands', async () => {
@@ -442,5 +467,115 @@ describe('validateWorkflowResources — agents capability', () => {
     const issues = await validateWorkflowResources(workflow, tmpDir);
     const warning = issues.find(i => i.level === 'warning' && i.field === 'agents');
     expect(warning).toBeUndefined();
+  });
+});
+
+// =============================================================================
+// validateWorkflowResources — on_failure_model vs fallbackModel
+// =============================================================================
+
+describe('validateWorkflowResources — on_failure_model + fallbackModel both set', () => {
+  test('warns when both on_failure_model and fallbackModel are set on one node', async () => {
+    const workflow = makeWorkflow(
+      'test',
+      [
+        {
+          id: 'step1',
+          prompt: 'p',
+          on_failure_model: 'anthropic/claude-haiku-4-5',
+          fallbackModel: 'claude-haiku-4-5-20251001',
+        } as unknown as DagNode,
+      ],
+      'claude'
+    );
+    const issues = await validateWorkflowResources(workflow, tmpDir);
+    const warning = issues.find(i => i.level === 'warning' && i.field === 'on_failure_model');
+    expect(warning).toBeDefined();
+    expect(warning!.nodeId).toBe('step1');
+    expect(warning!.message).toContain('on_failure_model');
+    expect(warning!.message).toContain('fallbackModel');
+  });
+
+  test('no warning when only on_failure_model is set', async () => {
+    const workflow = makeWorkflow(
+      'test',
+      [
+        {
+          id: 'step1',
+          prompt: 'p',
+          on_failure_model: 'anthropic/claude-haiku-4-5',
+        } as unknown as DagNode,
+      ],
+      'claude'
+    );
+    const issues = await validateWorkflowResources(workflow, tmpDir);
+    expect(issues.find(i => i.field === 'on_failure_model')).toBeUndefined();
+  });
+
+  test('no warning when only fallbackModel is set', async () => {
+    const workflow = makeWorkflow(
+      'test',
+      [
+        {
+          id: 'step1',
+          prompt: 'p',
+          fallbackModel: 'claude-haiku-4-5-20251001',
+        } as unknown as DagNode,
+      ],
+      'claude'
+    );
+    const issues = await validateWorkflowResources(workflow, tmpDir);
+    expect(issues.find(i => i.field === 'on_failure_model')).toBeUndefined();
+  });
+});
+
+// =============================================================================
+// validateWorkflowResources — workflow-level on_failure_model cascade warning (F1)
+// =============================================================================
+
+describe('validateWorkflowResources — workflow-level on_failure_model cascade', () => {
+  test('warns when AI node lacks per-node on_failure_model but workflow root sets one', async () => {
+    const workflow = {
+      name: 'cascade-warn',
+      description: 'root pin, no per-node pin',
+      provider: 'omp',
+      on_failure_model: 'alibaba-coding-plan/qwen3.7-plus',
+      nodes: [{ id: 'inheritor', prompt: 'do the thing' } as DagNode],
+    } as WorkflowDefinition;
+    const issues = await validateWorkflowResources(workflow, tmpDir);
+    const warning = issues.find(
+      i => i.level === 'warning' && i.field === 'on_failure_model' && i.nodeId === 'inheritor'
+    );
+    expect(warning).toBeDefined();
+    expect(warning!.message).toContain('inherits');
+    expect(warning!.message).toContain('alibaba-coding-plan/qwen3.7-plus');
+  });
+
+  test('does NOT warn when AI node sets its own on_failure_model', async () => {
+    const workflow = {
+      name: 'cascade-silent',
+      description: 'root pin, per-node override',
+      provider: 'omp',
+      on_failure_model: 'alibaba-coding-plan/qwen3.7-plus',
+      nodes: [
+        {
+          id: 'explicit',
+          prompt: 'do the thing',
+          on_failure_model: 'anthropic/claude-haiku-4-5',
+        } as DagNode,
+      ],
+    } as WorkflowDefinition;
+    const issues = await validateWorkflowResources(workflow, tmpDir);
+    expect(
+      issues.find(
+        i => i.level === 'warning' && i.field === 'on_failure_model' && i.nodeId === 'explicit'
+      )
+    ).toBeUndefined();
+  });
+
+  test('does NOT warn when workflow has no root on_failure_model', async () => {
+    const workflow = makeWorkflow('no-root-pin', [{ id: 'n', prompt: 'p' } as DagNode], 'omp');
+    const issues = await validateWorkflowResources(workflow, tmpDir);
+    expect(issues.find(i => i.field === 'on_failure_model')).toBeUndefined();
   });
 });

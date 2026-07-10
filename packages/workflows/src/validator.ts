@@ -31,6 +31,7 @@ function getLog(): ReturnType<typeof createLogger> {
   return cachedLog;
 }
 import { isScriptNode } from './schemas';
+import { validateOmpModelLiveness } from './model-preflight';
 import type { WorkflowDefinition, DagNode } from './schemas';
 import type { ScriptRuntime } from './script-discovery';
 import { discoverScriptsForCwd } from './script-discovery';
@@ -83,6 +84,12 @@ export interface CommandValidationResult {
 export interface ValidationConfig {
   loadDefaultCommands?: boolean;
   commandFolder?: string;
+  /**
+   * Run live OMP model prompt probes (one real LLM request per unique model).
+   * Default false: cheap registry/credential resolution only.
+   * Set via `archon validate workflows --live`.
+   */
+  liveModelCheck?: boolean;
 }
 
 // =============================================================================
@@ -321,6 +328,54 @@ export async function validateWorkflowResources(
   for (const node of workflow.nodes) {
     const provider = resolveProvider(node, workflow.provider, defaultProvider);
 
+    // --- AI node missing on_failure_model when workflow root sets it ---
+    // The cascade only covers nodes that have a primary model. If the workflow
+    // pins on_failure_model at the root and an AI node has no per-node pin,
+    // the node IS inheriting the root pin (F1 cascade) — but it's also a
+    // signal the author may have forgotten the per-node override, so surface
+    // a hint-level warning that explains the inheritance. CI signal: if the
+    // warning fires, the run still works; if the author intended a different
+    // model for that node, they need to add the per-node pin explicitly.
+    if (
+      workflow.on_failure_model &&
+      typeof workflow.on_failure_model === 'string' &&
+      'prompt' in node &&
+      typeof node.prompt === 'string' &&
+      !(
+        'on_failure_model' in node &&
+        typeof node.on_failure_model === 'string' &&
+        node.on_failure_model.length > 0
+      )
+    ) {
+      issues.push({
+        level: 'warning',
+        nodeId: node.id,
+        field: 'on_failure_model',
+        message: `AI node inherits on_failure_model='${workflow.on_failure_model}' from the workflow root — no per-node pin set`,
+        hint: 'Add an explicit on_failure_model on this node if it needs a different fallback than the workflow default',
+      });
+    }
+
+    // --- on_failure_model vs fallbackModel: warn when both are set ---
+    // They look like synonyms but differ: `on_failure_model` is Archon
+    // workflow-layer routing (switch model on failure / open breaker, any
+    // provider); `fallbackModel` is a Claude SDK passthrough option.
+    if (
+      'on_failure_model' in node &&
+      typeof node.on_failure_model === 'string' &&
+      'fallbackModel' in node &&
+      typeof node.fallbackModel === 'string'
+    ) {
+      issues.push({
+        level: 'warning',
+        nodeId: node.id,
+        field: 'on_failure_model',
+        message:
+          "Both 'on_failure_model' (Archon workflow-layer model routing) and 'fallbackModel' (Claude SDK passthrough) are set — these are different mechanisms and may interact in surprising ways",
+        hint: 'Keep one: on_failure_model for Archon-level failover across providers, fallbackModel for Claude SDK-internal fallback',
+      });
+    }
+
     // --- Command nodes: check file exists ---
     if ('command' in node && typeof node.command === 'string') {
       if (!isValidCommandName(node.command)) {
@@ -529,6 +584,11 @@ export async function validateWorkflowResources(
       }
     }
   }
+
+  const modelIssues = await validateOmpModelLiveness(workflow, cwd, defaultProvider, undefined, {
+    live: config?.liveModelCheck === true,
+  });
+  issues.push(...modelIssues);
 
   return issues;
 }

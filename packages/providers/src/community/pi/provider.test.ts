@@ -1,5 +1,9 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
-import type { AgentSessionEvent } from '@mariozechner/pi-coding-agent';
+import type { AgentSessionEvent } from '@earendil-works/pi-coding-agent';
 
 import { createMockLogger } from '../../test/mocks/logger';
 
@@ -43,6 +47,7 @@ const mockSetFlagValue = mock((_name: string, _value: boolean | string) => undef
 const mockExtensionRunner = {
   setFlagValue: mockSetFlagValue,
 };
+const mockSetModel = mock(async (_model: unknown) => undefined);
 const mockSession = {
   subscribe: mockSubscribe,
   prompt: mockPrompt,
@@ -50,6 +55,7 @@ const mockSession = {
   dispose: mockDispose,
   bindExtensions: mockBindExtensions,
   extensionRunner: mockExtensionRunner,
+  setModel: mockSetModel,
   isStreaming: false,
   sessionId: 'mock-session-uuid',
 };
@@ -99,7 +105,15 @@ const mockSessionList = mock(
   async (_cwd: string) => [] as { id: string; path: string; cwd: string }[]
 );
 
-const mockSettingsManagerInMemory = mock(() => ({}));
+const mockSettingsManagerDrainErrors = mock(() => []);
+const mockSettingsManagerGetGlobalSettings = mock(() => ({}));
+const mockSettingsManagerGetProjectSettings = mock(() => ({}));
+const mockSettingsManagerCreate = mock(() => ({
+  drainErrors: mockSettingsManagerDrainErrors,
+  getGlobalSettings: mockSettingsManagerGetGlobalSettings,
+  getProjectSettings: mockSettingsManagerGetProjectSettings,
+}));
+const mockSettingsManagerInMemory = mock((_settings?: unknown) => ({}));
 const mockResourceLoaderReload = mock(async () => undefined);
 // Return-style constructor: bun's mock() wraps the function such that the
 // `this`-binding doesn't reliably propagate to `new` call sites. Returning a
@@ -119,7 +133,7 @@ const mockCreateGrepTool = mock((_cwd: string) => ({ __piTool: 'grep' }));
 const mockCreateFindTool = mock((_cwd: string) => ({ __piTool: 'find' }));
 const mockCreateLsTool = mock((_cwd: string) => ({ __piTool: 'ls' }));
 
-mock.module('@mariozechner/pi-coding-agent', () => ({
+mock.module('@earendil-works/pi-coding-agent', () => ({
   createAgentSession: mockCreateAgentSession,
   AuthStorage: { create: mockAuthCreate },
   ModelRegistry: { create: mockModelRegistryCreate },
@@ -128,8 +142,15 @@ mock.module('@mariozechner/pi-coding-agent', () => ({
     open: mockSessionOpen,
     list: mockSessionList,
   },
-  SettingsManager: { inMemory: mockSettingsManagerInMemory },
+  SettingsManager: {
+    create: mockSettingsManagerCreate,
+    inMemory: mockSettingsManagerInMemory,
+  },
   DefaultResourceLoader: MockDefaultResourceLoader,
+  // Stub for the value import added when resource-loader.ts started passing
+  // an explicit `agentDir` to DefaultResourceLoader (required since
+  // pi-coding-agent 0.68+). Returns a deterministic path for tests.
+  getAgentDir: () => '/mock/.pi/agent',
   createReadTool: mockCreateReadTool,
   createBashTool: mockCreateBashTool,
   createEditTool: mockCreateEditTool,
@@ -177,6 +198,7 @@ describe('PiProvider', () => {
     mockDispose.mockClear();
     mockSubscribe.mockClear();
     mockBindExtensions.mockClear();
+    mockSetModel.mockClear();
     mockSetFlagValue.mockClear();
     mockResourceLoaderReload.mockClear();
     mockCreateAgentSession.mockClear();
@@ -197,6 +219,14 @@ describe('PiProvider', () => {
     mockSessionOpen.mockClear();
     mockSessionList.mockClear();
     mockSessionList.mockImplementation(async () => []);
+    mockSettingsManagerInMemory.mockClear();
+    mockSettingsManagerCreate.mockClear();
+    mockSettingsManagerDrainErrors.mockReset();
+    mockSettingsManagerDrainErrors.mockImplementation(() => []);
+    mockSettingsManagerGetGlobalSettings.mockReset();
+    mockSettingsManagerGetGlobalSettings.mockImplementation(() => ({}));
+    mockSettingsManagerGetProjectSettings.mockReset();
+    mockSettingsManagerGetProjectSettings.mockImplementation(() => ({}));
     capturedListener = undefined;
     scriptedEvents.length = 0;
     fileCreds = {};
@@ -226,6 +256,21 @@ describe('PiProvider', () => {
     await consume(new PiProvider().sendQuery('hi', '/tmp'));
     expect(process.env.PI_PACKAGE_DIR).toBeDefined();
     expect(process.env.PI_PACKAGE_DIR).toContain('archon-pi-shim');
+
+    // Stub contents are load-bearing: Pi reads `version` to populate its
+    // user-agent and `piConfig` (even when empty) to opt into the defaults
+    // path instead of erroring on missing config. Asserting on shape so a
+    // regression here surfaces in the test suite, not in a Pi runtime crash.
+    const shimDir = process.env.PI_PACKAGE_DIR;
+    expect(shimDir).toBe(join(tmpdir(), 'archon-pi-shim'));
+    const stub = JSON.parse(readFileSync(join(shimDir!, 'package.json'), 'utf8')) as {
+      name: string;
+      version: string;
+      piConfig: Record<string, unknown>;
+    };
+    expect(stub.name).toBe('archon-pi-shim');
+    expect(stub.version).toBe('0.0.0');
+    expect(stub.piConfig).toEqual({});
   });
 
   test('throws when no model is configured', async () => {
@@ -262,11 +307,9 @@ describe('PiProvider', () => {
   });
 
   test('ModelRegistry.create receives the AuthStorage instance', async () => {
-    // Headline-fix wiring: ModelRegistry.create must receive the same
-    // AuthStorage instance returned by AuthStorage.create(), so registry
-    // lookups can resolve user-configured custom models from
-    // ~/.pi/agent/models.json (LM Studio, ollama, llamacpp, etc.). Without
-    // this wiring the registry only sees the static built-in catalog.
+    // ModelRegistry.create must receive the same AuthStorage instance
+    // returned by AuthStorage.create(), so extension providers can resolve
+    // credentials and register models during bindExtensions().
     process.env.GEMINI_API_KEY = 'sk-test';
     resetScript(scriptedAgentEnd());
 
@@ -308,17 +351,17 @@ describe('PiProvider', () => {
   });
 
   test('Pi model not found includes models.json load error when registry reports one', async () => {
-    // ModelRegistry swallows models.json parse/validation errors into an
-    // internal loadError. When find() returns undefined we surface that
-    // error in both the structured log and the throw message so users
-    // debugging a custom-provider config see the actual reason.
     process.env.GEMINI_API_KEY = 'sk-test';
+    // find() is called twice — first on the static catalog, then again after bindExtensions()
+    // resolves extension providers. Both must return undefined to trigger the error.
+    mockModelRegistryFind.mockImplementationOnce(() => undefined);
     mockModelRegistryFind.mockImplementationOnce(() => undefined);
     mockModelRegistryCreate.mockImplementationOnce(() => ({
       find: mockModelRegistryFind,
       getError: () => 'Provider lm-studio: "baseUrl" is required when defining custom models.',
     }));
 
+    resetScript(scriptedAgentEnd());
     const { error } = await consume(
       new PiProvider().sendQuery('hi', '/tmp', undefined, {
         model: 'lm-studio/some-model',
@@ -326,15 +369,14 @@ describe('PiProvider', () => {
     );
 
     expect(error?.message).toContain('Pi model not found');
-    expect(error?.message).toContain('models.json failed to load');
-    expect(error?.message).toContain('"baseUrl" is required');
-    expect(mockLogger.error).toHaveBeenCalledWith(
+    expect(error?.message).toContain('provider extension');
+    expect(mockLogger.warn).toHaveBeenCalledWith(
       expect.objectContaining({
         piProvider: 'lm-studio',
         modelId: 'some-model',
         loadError: expect.stringContaining('"baseUrl" is required'),
       }),
-      'pi.model_not_found'
+      'pi.model_registry_load_error'
     );
   });
 
@@ -388,17 +430,43 @@ describe('PiProvider', () => {
 
   test('throws when ModelRegistry.find returns undefined', async () => {
     process.env.GEMINI_API_KEY = 'sk-test';
-    // 'nonexistent' is handled in mockModelRegistryFind to return undefined, but
-    // the adapter rejects unknown providers. To exercise
-    // the not-found branch, use a known provider but unknown modelId by
-    // temporarily swapping mockModelRegistryFind to always return undefined.
+    // find() is called twice — first on the static catalog, then again after bindExtensions()
+    // resolves extension providers. Both must return undefined to trigger the error.
     mockModelRegistryFind.mockImplementationOnce(() => undefined);
+    mockModelRegistryFind.mockImplementationOnce(() => undefined);
+    resetScript(scriptedAgentEnd());
     const { error } = await consume(
       new PiProvider().sendQuery('hi', '/tmp', undefined, {
         model: 'google/unknown-model-id',
       })
     );
     expect(error?.message).toContain('Pi model not found');
+    expect(error?.message).toContain('provider extension');
+  });
+
+  test('deferred resolution: calls session.setModel when find() resolves after bindExtensions', async () => {
+    // Phase 1: model not in static catalog (extension provider path).
+    // Phase 2: extension registers the model during bindExtensions() and find() succeeds.
+    mockModelRegistryFind.mockImplementationOnce(() => undefined);
+    mockModelRegistryFind.mockImplementationOnce(() => ({
+      id: 'custom-model',
+      provider: 'extension-provider',
+      name: 'extension-provider/custom-model',
+    }));
+    resetScript(scriptedAgentEnd());
+
+    const { error } = await consume(
+      new PiProvider().sendQuery('hi', '/tmp', undefined, {
+        model: 'extension-provider/custom-model',
+      })
+    );
+
+    expect(error).toBeUndefined();
+    expect(mockModelRegistryFind).toHaveBeenCalledTimes(2);
+    expect(mockSetModel).toHaveBeenCalledTimes(1);
+    expect(mockSetModel).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'custom-model', provider: 'extension-provider' })
+    );
   });
 
   test('request env (codebase env vars) overrides process.env via setRuntimeApiKey', async () => {
@@ -814,8 +882,11 @@ describe('PiProvider', () => {
     );
 
     const [callArgs] = mockCreateAgentSession.mock.calls[0] as [Record<string, unknown>];
-    expect(Array.isArray(callArgs.tools)).toBe(true);
-    const tools = callArgs.tools as Array<{ __piTool: string }>;
+    // Pi 0.68+: customTools holds the actual Tool objects; noTools: "builtin"
+    // suppresses Pi's default built-in set so the customTools list is authoritative.
+    expect(Array.isArray(callArgs.customTools)).toBe(true);
+    expect(callArgs.noTools).toBe('builtin');
+    const tools = callArgs.customTools as Array<{ __piTool: string }>;
     expect(tools.map(t => t.__piTool).sort()).toEqual(['grep', 'read']);
   });
 
@@ -831,7 +902,9 @@ describe('PiProvider', () => {
     );
 
     const [callArgs] = mockCreateAgentSession.mock.calls[0] as [Record<string, unknown>];
-    expect(callArgs.tools).toEqual([]);
+    // Empty customTools + noTools: "builtin" == "no tools at all".
+    expect(callArgs.customTools).toEqual([]);
+    expect(callArgs.noTools).toBe('builtin');
   });
 
   test('unknown tool names yield system warning', async () => {
@@ -864,7 +937,8 @@ describe('PiProvider', () => {
     );
 
     const [callArgs] = mockCreateAgentSession.mock.calls[0] as [Record<string, unknown>];
-    const tools = callArgs.tools as Array<{ __piTool: string }>;
+    const tools = callArgs.customTools as Array<{ __piTool: string }>;
+    expect(callArgs.noTools).toBe('builtin');
     // Pi has 7 built-ins, 2 denied → 5 remain
     expect(tools).toHaveLength(5);
     expect(tools.find(t => t.__piTool === 'bash')).toBeUndefined();
@@ -882,8 +956,10 @@ describe('PiProvider', () => {
     );
 
     const [callArgs] = mockCreateAgentSession.mock.calls[0] as [Record<string, unknown>];
-    // tools key should be absent — Pi uses its default codingTools
-    expect('tools' in callArgs).toBe(false);
+    // No overrides → neither customTools nor noTools should be set; Pi uses
+    // its default built-in tools.
+    expect('customTools' in callArgs).toBe(false);
+    expect('noTools' in callArgs).toBe(false);
   });
 
   test('requestOptions.env with no tool restrictions overrides Pi defaults with env-aware bash', async () => {
@@ -898,9 +974,10 @@ describe('PiProvider', () => {
     );
 
     const [callArgs] = mockCreateAgentSession.mock.calls[0] as [Record<string, unknown>];
-    // Env present → we override Pi's built-in codingTools so bash sees the env.
-    const tools = callArgs.tools as Array<{ __piTool: string }>;
+    // Env present → we override Pi's built-in defaults so bash sees the env.
+    const tools = callArgs.customTools as Array<{ __piTool: string }>;
     expect(Array.isArray(tools)).toBe(true);
+    expect(callArgs.noTools).toBe('builtin');
     expect(tools.map(t => t.__piTool).sort()).toEqual(['bash', 'edit', 'read', 'write']);
 
     const bashCall = mockCreateBashTool.mock.calls.find(call => call[1] !== undefined);
@@ -1013,6 +1090,32 @@ describe('PiProvider', () => {
       | Record<string, unknown>
       | undefined;
     expect(loaderArgs?.systemPrompt).toBe('request-level wins');
+  });
+
+  test('preset object systemPrompt is dropped with warning', async () => {
+    process.env.GEMINI_API_KEY = 'sk-test';
+    resetScript(scriptedAgentEnd());
+
+    await consume(
+      new PiProvider().sendQuery('hi', '/tmp', undefined, {
+        model: 'google/gemini-2.5-pro',
+        systemPrompt: {
+          type: 'preset',
+          preset: 'claude_code',
+          append: 'extra',
+        } as unknown as string,
+      })
+    );
+
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ systemPromptType: 'object' }),
+      'pi.system_prompt_dropped_non_string'
+    );
+
+    const loaderArgs = MockDefaultResourceLoader.mock.calls[0]?.[0] as
+      | Record<string, unknown>
+      | undefined;
+    expect(loaderArgs?.systemPrompt).toBeUndefined();
   });
 
   test('capabilities reflect v2 wiring', () => {
@@ -1529,5 +1632,124 @@ describe('PiProvider', () => {
     } finally {
       delete process.env.PI_TEST_SHELL_WINS;
     }
+  });
+
+  // Semaphore tests run last — the module-level piSemaphore singleton persists
+  // across tests once initialized, so these must not affect tests that run before.
+  test('maxConcurrent initializes semaphore and logs pi.semaphore_initialized', async () => {
+    process.env.GEMINI_API_KEY = 'sk-test';
+    resetScript(scriptedAgentEnd());
+
+    await consume(
+      new PiProvider().sendQuery('hi', '/tmp', undefined, {
+        model: 'google/gemini-2.5-pro',
+        assistantConfig: { maxConcurrent: 2 },
+      })
+    );
+
+    expect(mockLogger.info).toHaveBeenCalledWith({ maxConcurrent: 2 }, 'pi.semaphore_initialized');
+    // Semaphore slot released: dispose fires on successful completion
+    expect(mockDispose).toHaveBeenCalledTimes(1);
+  });
+
+  test('semaphore is not initialized when maxConcurrent is absent', async () => {
+    process.env.GEMINI_API_KEY = 'sk-test';
+    resetScript(scriptedAgentEnd());
+
+    await consume(
+      new PiProvider().sendQuery('hi', '/tmp', undefined, {
+        model: 'google/gemini-2.5-pro',
+      })
+    );
+
+    const initCalls = (mockLogger.info.mock.calls as unknown[][]).filter(
+      c => c[1] === 'pi.semaphore_initialized'
+    );
+    expect(initCalls).toHaveLength(0);
+  });
+
+  test('settings: create(cwd) called, inMemory seeded with pre-merged global+project (empty project → just global)', async () => {
+    process.env.GEMINI_API_KEY = 'sk-test';
+    resetScript(scriptedAgentEnd());
+    mockSettingsManagerGetGlobalSettings.mockImplementation(() => ({ defaultProvider: 'google' }));
+    mockSettingsManagerGetProjectSettings.mockImplementation(() => ({}));
+
+    await consume(
+      new PiProvider().sendQuery('hi', '/tmp', undefined, { model: 'google/gemini-2.5-pro' })
+    );
+
+    expect(mockSettingsManagerCreate).toHaveBeenCalledTimes(1);
+    expect(mockSettingsManagerCreate).toHaveBeenCalledWith('/tmp');
+    expect(mockSettingsManagerInMemory).toHaveBeenCalledWith({ defaultProvider: 'google' });
+  });
+
+  test('settings: inMemory seeded with project settings merged on top of global', async () => {
+    process.env.GEMINI_API_KEY = 'sk-test';
+    resetScript(scriptedAgentEnd());
+    mockSettingsManagerGetGlobalSettings.mockImplementation(() => ({}));
+    mockSettingsManagerGetProjectSettings.mockImplementation(() => ({ retry: { enabled: true } }));
+
+    await consume(
+      new PiProvider().sendQuery('hi', '/tmp', undefined, { model: 'google/gemini-2.5-pro' })
+    );
+
+    expect(mockSettingsManagerInMemory).toHaveBeenCalledWith({ retry: { enabled: true } });
+  });
+
+  test('settings: object values are shallow-merged one level deep, while primitives and arrays override', async () => {
+    process.env.GEMINI_API_KEY = 'sk-test';
+    resetScript(scriptedAgentEnd());
+    mockSettingsManagerGetGlobalSettings.mockImplementation(() => ({
+      retry: {
+        enabled: false,
+        attempts: 1,
+        nested: { source: 'global', keep: true },
+      },
+      timeoutMs: 1000,
+      allow: ['global'],
+    }));
+    mockSettingsManagerGetProjectSettings.mockImplementation(() => ({
+      retry: {
+        enabled: true,
+        backoff: 'exp',
+        nested: { source: 'project' },
+      },
+      timeoutMs: 2000,
+      allow: ['project'],
+    }));
+
+    await consume(
+      new PiProvider().sendQuery('hi', '/tmp', undefined, { model: 'google/gemini-2.5-pro' })
+    );
+
+    expect(mockSettingsManagerInMemory).toHaveBeenCalledWith({
+      retry: {
+        enabled: true,
+        attempts: 1,
+        backoff: 'exp',
+        nested: { source: 'project' }, // nested objects are NOT recursively merged — one level deep only
+      },
+      timeoutMs: 2000,
+      allow: ['project'],
+    });
+  });
+
+  test('settings: parse errors logged as warnings, session still proceeds', async () => {
+    process.env.GEMINI_API_KEY = 'sk-test';
+    resetScript(scriptedAgentEnd());
+    const loadError = new Error('bad JSON');
+    mockSettingsManagerDrainErrors.mockImplementation(() => [
+      { scope: 'global', error: loadError },
+    ]);
+
+    const { error } = await consume(
+      new PiProvider().sendQuery('hi', '/tmp', undefined, { model: 'google/gemini-2.5-pro' })
+    );
+
+    expect(error).toBeUndefined();
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ scope: 'global', err: loadError }),
+      'pi.settings_load_error'
+    );
   });
 });

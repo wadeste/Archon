@@ -1,6 +1,6 @@
 ---
 title: AI Assistants
-description: Configure Claude Code, Codex, and Pi as AI assistants for Archon.
+description: Configure Claude Code, Codex, OpenCode, GitHub Copilot, Pi, and OMP (Oh My Pi) as AI assistants for Archon.
 category: getting-started
 area: clients
 audience: [user]
@@ -9,7 +9,7 @@ sidebar:
   order: 4
 ---
 
-You must configure **at least one** AI assistant. All three can be configured and mixed within workflows.
+You must configure **at least one** AI assistant. All assistants can be configured and mixed within workflows.
 
 ## Claude Code
 
@@ -43,7 +43,7 @@ See [Anthropic's setup guide](https://code.claude.com/docs/en/setup) for the ful
 
 ### Binary path configuration (compiled binaries only)
 
-Compiled Archon binaries cannot auto-discover Claude Code at runtime. Supply the path via either:
+In compiled Archon binaries, if `claude` is not on the default install path Archon autodetects, supply the path via either:
 
 1. **Environment variable** (highest precedence):
    ```ini
@@ -55,10 +55,11 @@ Compiled Archon binaries cannot auto-discover Claude Code at runtime. Supply the
      claude:
        claudeBinaryPath: /absolute/path/to/claude
    ```
+3. **Autodetect** (zero-config fallback): Archon probes `~/.local/bin/claude` (POSIX) and `%USERPROFILE%\.local\bin\claude.exe` (Windows), matching the native curl/PowerShell installer layouts.
 
-If neither is set in a compiled binary, Archon throws with install instructions on first Claude query.
+If none of the three resolves in a compiled binary, Archon throws with install instructions on first Claude query.
 
-The Claude Agent SDK accepts either the native compiled binary or a JS `cli.js`.
+The Claude Agent SDK accepts the native compiled binary, a JS `cli.js`, or the npm platform-package directory (e.g. `@anthropic-ai/claude-code-win32-x64`) — directories are auto-expanded to the contained `claude`/`claude.exe`.
 
 **Dev mode override:** when running from source (`bun run dev:server`), the SDK auto-resolves its bundled per-platform binary by default. Set `CLAUDE_BIN_PATH` if you need to override that — most commonly on glibc Linux where the SDK picks the musl variant first and fails to spawn. Config-file `claudeBinaryPath` is intentionally binary-mode-only (per-repo, not per-machine).
 
@@ -70,6 +71,7 @@ The Claude Agent SDK accepts either the native compiled binary or a JS `cli.js`.
 | Native PowerShell installer (Windows) | `%USERPROFILE%\.local\bin\claude.exe` |
 | Homebrew cask | `$(brew --prefix)/bin/claude` (symlink) |
 | npm global install | `$(npm root -g)/@anthropic-ai/claude-code/cli.js` |
+| npm platform-package directory (Windows) | `$(npm root -g)/@anthropic-ai/claude-code-win32-x64` — directory accepted, auto-expanded to `claude.exe` |
 | Windows winget | Resolvable via `where claude` |
 | Docker (`ghcr.io/coleam00/archon`) | Pre-set via `ENV CLAUDE_BIN_PATH` in the image — no action required |
 
@@ -127,7 +129,7 @@ assistants:
     # claudeBinaryPath: /absolute/path/to/claude
 ```
 
-The `settingSources` option controls which `CLAUDE.md` files the Claude Code SDK loads. By default, only the project-level `CLAUDE.md` is loaded. Add `user` to also load your personal `~/.claude/CLAUDE.md`.
+The `settingSources` option controls which `CLAUDE.md`, skill, command, and agent files the Claude Code SDK loads. The default is `['project', 'user']`, which loads both the project-level `<cwd>/.claude/` and your personal `~/.claude/`. Set it to `['project']` if you want to scope a workflow to project-only resources.
 
 ### Set as Default (Optional)
 
@@ -173,6 +175,7 @@ In compiled Archon binaries, if `codex` is not on the default PATH Archon expect
        codexBinaryPath: /absolute/path/to/codex
    ```
 3. **Vendor directory** (zero-config fallback): drop the native binary at `~/.archon/vendor/codex/codex` (or `codex.exe` on Windows).
+4. **Autodetect** (zero-config fallback): if the vendor directory is empty, Archon probes the common npm-global install layouts: `~/.npm-global/bin/codex` (POSIX), `/opt/homebrew/bin/codex` (macOS Apple Silicon), `/usr/local/bin/codex` (macOS Intel and Linux), `%APPDATA%\npm\codex.cmd` and `%USERPROFILE%\.npm-global\codex.cmd` (Windows). For other npm prefixes or custom layouts, set `CODEX_BIN_PATH` or the config path explicitly.
 
 Dev mode (`bun run`) does not require any of the above — the SDK resolves `codex` via `node_modules`.
 
@@ -229,15 +232,103 @@ If you want Codex to be the default AI assistant for new conversations without c
 DEFAULT_AI_ASSISTANT=codex
 ```
 
+## OpenCode (Community Provider)
+
+**SDK-backed community provider.** Archon's OpenCode adapter uses `@opencode-ai/sdk`, which provides a multi-provider AI coding agent with support for Anthropic, OpenAI, Google, and more through a unified interface.
+
+OpenCode is registered as `builtIn: false` — like Pi, it is a bundled community provider rather than a core built-in.
+
+Archon always runs OpenCode as a **managed embedded runtime** — it spawns and owns the OpenCode server process, generates a random server password per session, and tears it down when the workflow completes. Connecting to an external OpenCode server (`baseUrl`) is not supported.
+
+### Install
+
+OpenCode is included as a dependency of `@archon/providers` — `bun install` pulls in the SDK automatically. It's available immediately.
+
+### Authenticate
+
+OpenCode handles authentication internally — Archon does not pass API keys through config. Configure credentials using one of these methods:
+
+1. **`/connect` TUI command** — Run `opencode` in your terminal, then use the `/connect` command to interactively authenticate with your chosen provider
+2. **Config file** — Store credentials in `~/.config/opencode/opencode.json` with `{env:VAR}` or `{file:PATH}` substitution
+3. **Auth file** — Credentials are persisted in `~/.local/share/opencode/auth.json` after connecting
+
+OpenCode delegates to the underlying LLM provider (Anthropic, OpenAI, Google, etc.) based on your model selection. Request-scoped env vars from Archon workflows are still merged into the OpenCode environment.
+
+### Configuration Options
+
+```yaml
+assistants:
+  opencode:
+    model: anthropic/claude-3-5-sonnet  # Required: '<provider>/<model>' format
+    # or build-in agent
+    agent: general
+```
+
+### Model reference format
+
+OpenCode models use a `<provider>/<model>` format. List all available models via `opencode models`:
+
+```yaml
+assistants:
+  opencode:
+    model: anthropic/claude-3-5-sonnet   # via Anthropic
+    # model: openai/gpt-4o                # via OpenAI
+    # model: google/gemini-2.5-pro        # via Google
+```
+
+### Supported Archon Features
+
+| Feature | Support | Notes |
+|---|---|---|
+| Session resume | ✅ | Single-agent runs return `sessionId`; multi-agent runs do not |
+| MCP servers | ✅ | `mcp: path/to/servers.json` passed through to OpenCode |
+| Structured output | ✅ | `output_format:` — schema passed to OpenCode SDK |
+| System prompt override | ✅ | `systemPrompt:` |
+| Codebase env vars (`envInjection`) | ✅ | merged into the spawned OpenCode environment |
+| Skills | ✅ | SKILL.md files with YAML frontmatter, pattern-based permissions |
+| Tool restrictions | ✅ | `tools` / `disallowedTools` per agent; deny wins over allow |
+| Inline agents (`agents:`) | ✅ | File-materialized agents; single and parallel multi-agent fan-out |
+| Hooks | ✅ | Plugin hook system (tool, session, message hooks) |
+| Effort / reasoning control | ❌ | No per-request param; not configurable in agent file, opencode puts it in config. |
+| Thinking control | ❌ | No explicit `thinking` field in agent frontmatter; OpenCode auto-enables reasoning when `agents[].model` is a reasoning-capable model (e.g. `anthropic/claude-sonnet-4-5`) |
+| Fallback model | ❌ | No native failover in the SDK |
+| Sandbox | ❌ | Not native in the SDK; Archon uses worktree isolation |
+| Cost limits (`maxBudgetUsd`) | ❌ | Cost tracked in result chunks, but no runtime budget enforcement |
+
+Unsupported YAML fields trigger a visible warning from the dag-executor when the workflow runs, so you always know what was ignored.
+
+### Usage in workflows
+
+```yaml
+name: my-workflow
+provider: opencode
+model: anthropic/claude-3-5-sonnet
+
+nodes:
+  - id: analyze
+    prompt: "Analyze the codebase structure"
+    # per-node model override:
+    # model: openai/gpt-4o
+```
+
+### See also
+
+- [Adding a Community Provider](../contributing/adding-a-community-provider/) — the contributor-facing guide for extending Archon with your own provider.
+- [OpenCode on GitHub](https://github.com/opencode-ai/opencode) — upstream project.
+
 ## Pi (Community Provider)
 
-**One adapter, ~20 LLM backends.** Pi (`@mariozechner/pi-coding-agent`) is a community-maintained coding-agent harness that Archon integrates as the first community provider. It unlocks Anthropic, OpenAI, Google (Gemini + Vertex), Groq, Mistral, Cerebras, xAI, OpenRouter, Hugging Face, and local inference (LM Studio, ollama, llamacpp, custom OpenAI-compatible endpoints registered in `~/.pi/agent/models.json`) under a single `provider: pi` entry.
+**One adapter, ~20 LLM backends.** Pi (`@earendil-works/pi-coding-agent`) is a community-maintained coding-agent harness that Archon integrates as the first community provider. It unlocks Anthropic, OpenAI, Google (Gemini + Vertex), Groq, Mistral, Cerebras, xAI, OpenRouter, Hugging Face, and local inference (LM Studio, ollama, llamacpp, custom OpenAI-compatible endpoints registered in `~/.pi/agent/models.json`) under a single `provider: pi` entry.
 
 Pi is registered as `builtIn: false` — it validates the community-provider seam rather than being a core-team-maintained option. If it proves stable and valuable it may be promoted to `builtIn: true` later.
 
 ### Install
 
 Pi is included as a dependency of `@archon/providers` — no separate install needed. It's available immediately.
+
+### Quick setup via wizard
+
+Run `archon setup` and select **Pi (community)** in the AI assistant multiselect. The wizard prompts for your preferred backend and API key, writes the key to `~/.archon/.env`, and writes the model ref to `~/.archon/config.yaml` automatically.
 
 ### Authenticate
 
@@ -278,6 +369,19 @@ assistants:
 ```
 
 Archon logs an info-level `pi.auth_missing` event when no credentials are found and continues — Pi's SDK then connects directly to the local endpoint defined in `models.json`. If the provider does require auth (a less-common cloud backend not in the env-var table) the SDK call fails downstream; the `pi.auth_missing` breadcrumb in the log lets you trace it back to a missing env-var mapping.
+
+### Pi settings (baseline behavior)
+
+Archon reads your Pi settings files as the starting point for every session:
+
+- **`~/.pi/agent/settings.json`** — global Pi preferences (retry counts, transport, compaction strategy, thinking budgets, default model, etc.)
+- **`<repo>/.pi/settings.json`** — project-level overrides on top of global
+
+All settings flow in automatically. You do not need to re-state them in Archon's `config.yaml`. To configure baseline Pi settings, edit `~/.pi/agent/settings.json` directly.
+
+Archon never writes back to these files — `~/.pi/agent/settings.json` is read-only from Archon's perspective. Session-level changes (model switches, thinking-level adjustments) are held in memory only and discarded when the session ends, matching Claude and Codex behavior.
+
+If Pi settings files do not exist (Docker, first-time setup, compiled binary with no Pi home directory), Archon falls back to Pi SDK defaults. Parse errors in the settings files are logged as warnings (`pi.settings_load_error`) and never prevent the session from starting.
 
 ### Extensions (on by default)
 
@@ -387,7 +491,211 @@ Unsupported YAML fields trigger a visible warning from the dag-executor when the
 ### See also
 
 - [Adding a Community Provider](../contributing/adding-a-community-provider/) — the contributor-facing guide for extending Archon with your own provider.
-- [Pi on GitHub](https://github.com/badlogic/pi-mono) — upstream project.
+- [Pi documentation](https://pi.dev) — official Pi docs (extensions, model registry, settings).
+- [Pi on GitHub](https://github.com/earendil-works/pi) — upstream project.
+
+## GitHub Copilot (Community Provider)
+
+**Use a GitHub Copilot subscription inside Archon workflows.** Drives the Copilot CLI via `@github/copilot-sdk`, supporting OpenAI, Anthropic via BYOK, Gemini, and the other models Copilot exposes — switch between them with the `model` field.
+
+Copilot is registered as `builtIn: false` — like Pi, a bundled community provider rather than a core built-in.
+
+### Install
+
+For source installs (`bun run`), the SDK + its bundled CLI dependency come along with `bun install` — nothing extra to do.
+
+For compiled Archon binaries, install the Copilot CLI yourself and point Archon at it:
+
+```bash
+npm install -g @github/copilot
+```
+
+Then tell Archon where the binary lives (the resolver searches these in order):
+
+```ini
+# .env
+COPILOT_BIN_PATH=/absolute/path/to/copilot
+```
+
+```yaml
+# .archon/config.yaml
+assistants:
+  copilot:
+    copilotCliPath: /absolute/path/to/copilot
+```
+
+Or place the binary at `~/.archon/vendor/copilot/copilot` (POSIX) / `~/.archon/vendor/copilot/copilot.exe` (Windows) and the resolver picks it up automatically.
+
+### Authenticate
+
+By default, Copilot uses the credentials from your local `copilot login`. Generic `GH_TOKEN` / `GITHUB_TOKEN` env vars are **not** picked up automatically — classic GitHub PATs lack Copilot entitlement and would fail with a misleading SDK error. Auth precedence (highest to lowest):
+
+1. **`COPILOT_GITHUB_TOKEN`** (env) — always wins when set; treated as explicit Copilot intent
+2. **`useLoggedInUser: false`** in `.archon/config.yaml` — opts into env-token auth, including generic `GH_TOKEN` / `GITHUB_TOKEN`
+3. **`copilot login` credentials** — the default
+
+An active GitHub Copilot subscription is required for any of these to work.
+
+### Copilot Configuration Options
+
+You can configure Copilot's behavior in `.archon/config.yaml`:
+
+```yaml
+assistants:
+  copilot:
+    model: gpt-5-mini             # 'gpt-5', 'gpt-5-mini', 'claude-sonnet-4.5', 'auto', etc.
+    modelReasoningEffort: medium  # 'low' | 'medium' | 'high' | 'xhigh' | 'max' (alias for xhigh)
+    # configDir: /absolute/path/to/copilot-config
+    # enableConfigDiscovery: false  # only enable for trusted repos — bypasses Archon's workflow MCP/skill validation
+    # useLoggedInUser: false        # opt into env-token auth (GH_TOKEN / GITHUB_TOKEN); default uses `copilot login`
+    # logLevel: error               # 'none' | 'error' | 'warning' | 'info' | 'debug' | 'all'
+```
+
+Copilot accepts OpenAI models (`gpt-5`, `gpt-5-mini`), Anthropic via BYOK (`claude-sonnet-4.5`), Gemini, and more. When no model is configured, Archon passes `model: 'auto'` and Copilot picks.
+
+### Supported Archon Features
+
+| Feature | Support | Notes |
+|---|---|---|
+| Session resume | ✅ | Returns `sessionId`; reused on resume |
+| Reasoning control | ✅ | `effort:` / string `thinking:` → Copilot `reasoningEffort`; `max` maps to SDK `xhigh` |
+| System prompt override | ✅ | `systemPrompt:` |
+| Codebase env vars | ✅ | merged into the spawned Copilot CLI environment |
+| Tool restrictions | ✅ | `allowed_tools` → `availableTools`, `denied_tools` → `excludedTools` |
+| MCP servers | ✅ | `mcp: path/to/servers.json` → `SessionConfig.mcpServers` (env vars `$FOO` expanded; missing vars warned) |
+| Skills | ✅ | `skills: [name]` resolved from `.agents/skills/` or `.claude/skills/` (project or home) → `SessionConfig.skillDirectories` |
+| Structured output | ✅ | best-effort via prompt augmentation; unparseable output degrades to dag-executor's missing-output warning |
+| Sub-agents (`agents:`) | ✅ | `name`/`description`/`prompt`/`tools` → `SessionConfig.customAgents`; Claude-specific fields (`model`, `disallowedTools`, `skills`, `maxTurns`) warn per agent and are ignored |
+| Fork-session retry | ⚠️ | Copilot SDK has no fork API — when Archon requests a fork (on retry), we create a fresh session and emit a system-chunk warning |
+| Hooks | ❌ | Archon hooks ≠ Copilot's `SessionHooks` event vocabulary |
+| Fallback model | ❌ | not wired |
+| Cost control | ❌ | no cost-limit API |
+| Sandbox | ❌ | Copilot permissions surface is separate from Archon's sandbox model |
+
+### Set as Default (Optional)
+
+```ini
+DEFAULT_AI_ASSISTANT=copilot
+```
+
+### See also
+
+- [Adding a Community Provider](../contributing/adding-a-community-provider/) — the contributor-facing guide for extending Archon with your own provider.
+- [`@github/copilot-sdk`](https://www.npmjs.com/package/@github/copilot-sdk) — upstream SDK.
+
+
+## OMP / Oh My Pi (Community Provider)
+
+**Archon-native Oh My Pi harness.** OMP (`@oh-my-pi/pi-coding-agent`) is the upstream Oh My Pi coding agent that Archon integrates as the `provider: omp` community adapter. It uses the same `<provider-id>/<model-id>` reference format as Pi but reads configuration from **`~/.omp/agent/`**, not `~/.pi/agent/`.
+
+OMP is registered as `builtIn: false` — a bundled community provider, not a core built-in.
+
+### Install
+
+OMP is included as a dependency of `@archon/providers` — `bun install` pulls it in automatically.
+
+Install the OMP CLI separately if you want interactive login and model discovery:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/can1357/oh-my-pi/main/install.sh | bash
+```
+
+### Model catalogs (models.yml, models.db — not models.json)
+
+| File | Purpose |
+|---|---|
+| `~/.omp/agent/models.yml` | **Canonical** custom providers, overrides, and model definitions |
+| `~/.omp/agent/models.json` | Legacy format — only read when `models.yml` is absent |
+| `~/.omp/agent/models.db` | SQLite cache of **runtime-discovered** provider catalogs (Cursor, GitHub Copilot, Ollama, OpenAI Codex) |
+| `~/.omp/agent/agent.db` | Credentials from `omp /login` and config API keys |
+
+**Cursor / Composer models** (e.g. `cursor/composer-2.5`) are **not** defined in `models.yml`. They come from Cursor discovery and are cached in `models.db`. After adding models in Cursor IDE, run `omp` interactively or let Archon refresh the registry on the next workflow run.
+
+**Custom API providers** (e.g. MiniMax) belong in `models.yml`:
+
+```yaml
+# ~/.omp/agent/models.yml
+providers:
+  minimax-token-plan:
+    baseUrl: https://api.minimax.io/v1
+    api: openai-completions
+    models:
+      - id: MiniMax-M3
+        name: MiniMax M3
+```
+
+Use the **exact provider id** from YAML (lowercase letters, digits, hyphens — no underscores): `minimax-token-plan/MiniMax-M3`, not `minimax_m3/minimax-m3` from an old `models.json`.
+
+### Authenticate
+
+Archon calls `discoverAuthStorage()` so credentials load from **`~/.omp/agent/agent.db`** (SQLite), not legacy `auth.json`.
+
+- Run `omp /login` locally for OAuth subscriptions (Claude Pro/Max, ChatGPT, Copilot, etc.)
+- Or set API keys via env vars (same table as Pi for common providers) or `assistants.omp.env` in `.archon/config.yaml`
+
+| OMP provider id | Env var |
+|---|---|
+| `anthropic` | `ANTHROPIC_API_KEY` |
+| `openai` | `OPENAI_API_KEY` |
+| `google` | `GEMINI_API_KEY` |
+| `groq` | `GROQ_API_KEY` |
+| `openrouter` | `OPENROUTER_API_KEY` |
+
+Cursor uses discovery auth in `agent.db` — there is no `CURSOR_API_KEY` shortcut in Archon's adapter.
+
+### Configuration Options
+
+```yaml
+assistants:
+  omp:
+    # Omit `model` here to pick the model per workflow YAML (recommended).
+    enableExtensions: false   # opt in to ~/.omp/agent/extensions/
+    interactive: false        # UI bridge for approval-gate extensions (requires enableExtensions)
+    extensionFlags:
+      plan: true
+    env:
+      SOME_EXTENSION_FLAG: "1"
+```
+
+### Model reference format
+
+```yaml
+name: my-workflow
+provider: omp
+model: cursor/composer-2.5
+
+nodes:
+  - id: analyze
+    prompt: "Analyze the codebase"
+    # model: anthropic/claude-opus-4-6
+```
+
+Resolution order: node `model` → workflow `model` → `assistants.omp.model` in `.archon/config.yaml` → `modelRoles.default` in `~/.omp/agent/config.yml`. **Prefer per-workflow `model:`** so each workflow can use a different OMP model; leave `assistants.omp.model` unset unless you want one global fallback.
+
+### Supported Archon Features
+
+| Feature | Support | Notes |
+|---|---|---|
+| Session resume | ✅ | JSONL sessions under `~/.omp/agent/sessions/` |
+| Skills | ✅ | `.agents/skills` and `.claude/skills` |
+| Tool restrictions | ✅ | `allowed_tools` / `denied_tools` |
+| Structured output | ✅ | Best-effort via prompt augmentation + parse on `agent_end` |
+| Thinking / effort | ✅ | Maps to OMP `thinkingLevel` |
+| Codebase env vars | ✅ | `assistants.omp.env` merged at startup |
+| Extensions | ⚠️ | Opt-in via `enableExtensions: true` — loads arbitrary JS |
+| MCP / hooks / agents | ❌ | Not wired in v1 OMP adapter |
+
+### Set as Default (Optional)
+
+```ini
+DEFAULT_AI_ASSISTANT=omp
+```
+
+### See also
+
+- [Oh My Pi models documentation](https://github.com/can1357/oh-my-pi/blob/main/docs/models.md)
+- [Adding a Community Provider](../contributing/adding-a-community-provider/)
+
 
 ## How Assistant Selection Works
 

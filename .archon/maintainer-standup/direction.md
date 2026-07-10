@@ -15,6 +15,7 @@ This file is **committed and shared by all maintainers**. Edit deliberately — 
 - **Type-safe.** Strict TypeScript everywhere. No `any` without justification.
 - **Composable.** Scripts in `.archon/scripts/`, commands in `.archon/commands/`, workflows compose them.
 - **Self-hostable.** Bun + TypeScript runtime. SQLite by default; PostgreSQL optional. Zero external service dependencies for core operation.
+- **Forge-agnostic.** GitHub is the primary forge, but Gitea and GitLab are community supported targets via community adapters at `packages/adapters/src/community/forge/`. Long-term home for outbound forge operations (PR/issue/review CRUD) is the same per-forge adapter that handles inbound webhooks. New forges land as new community adapters that implement the shared interface.
 
 ## What Archon is NOT
 
@@ -24,6 +25,24 @@ This file is **committed and shared by all maintainers**. Edit deliberately — 
 - **Not a replacement for the AI coding agent itself.** Archon orchestrates Claude Code / Codex / Pi — it doesn't reimplement them.
 - **Not opinionated about the dev environment.** No mandatory editor integrations, framework lock-in, or Docker requirement beyond what users opt into.
 - **Not a workflow marketplace.** Bundled workflows are reference patterns; Archon is not aiming to be a hub for third-party workflow distribution.
+
+## Community providers
+
+Archon ships built-in providers for Claude (`@anthropic-ai/claude-agent-sdk`) and Codex (`@openai/codex-sdk`). Pi (`@mariozechner/pi-coding-agent`) is the reference community provider and sets the pattern others should follow.
+
+**Acceptance criteria** for new community providers:
+
+- **Coding-agent SDK only.** The provider must wrap an existing coding-agent SDK — one that handles file edits, tool use, multi-turn sessions, and planning. Raw LLM API integrations (`chat.completions`-style) are out of scope. Pi already covers ~20 LLM backends via one harness, so single-model wrappers duplicate work that is already done.
+- **Match the Pi pattern.** Structure mirrors `packages/providers/src/community/pi/` — provider class implementing `IAgentProvider`, options translator, event bridge, capability matrix, registered with `builtIn: false`. Tests at parity with the Pi suite (config, options-translator, event-bridge, provider, session-resolver as the baseline).
+- **Docs page.** Add the provider to `packages/docs-web/src/content/docs/getting-started/ai-assistants.md` with setup, capability matrix, and supported config keys.
+
+**Maintenance policy:**
+
+- We accept any provider that meets the criteria above. There is no cap.
+- The contributor and the community maintain the provider. Archon maintainers do not own upstream-SDK breaks for community providers.
+- A community provider that goes non-functional — CI broken, upstream SDK gone, no maintainer response — is marked deprecated and removed in the next minor release unless someone from the community submits a fix.
+
+When citing this policy in a PR comment: `direction.md §community-providers`.
 
 ## Open questions (no stance yet)
 

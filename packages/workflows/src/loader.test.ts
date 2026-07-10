@@ -33,17 +33,23 @@ import { registerBuiltinProviders, clearRegistry } from '@archon/providers';
 clearRegistry();
 registerBuiltinProviders();
 
-import { discoverWorkflows } from './workflow-discovery';
+import { discoverWorkflows, discoverWorkflowsWithConfig } from './workflow-discovery';
 import { isBashNode, isCancelNode, isLoopNode } from './schemas';
 import * as bundledDefaults from './defaults/bundled-defaults';
 
 describe('Workflow Loader', () => {
   let testDir: string;
+  const originalArchonHome = process.env.ARCHON_HOME;
+  const originalArchonDocker = process.env.ARCHON_DOCKER;
 
   beforeEach(async () => {
     // Create unique temp directory for each test
     testDir = join(tmpdir(), `workflow-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     await mkdir(testDir, { recursive: true });
+    process.env.ARCHON_HOME = join(testDir, 'home');
+    delete process.env.ARCHON_DOCKER;
+    const { resetLegacyHomeWarningForTests } = await import('./workflow-discovery');
+    resetLegacyHomeWarningForTests();
   });
 
   afterEach(async () => {
@@ -52,6 +58,16 @@ describe('Workflow Loader', () => {
       await rm(testDir, { recursive: true, force: true });
     } catch {
       // Ignore cleanup errors
+    }
+    if (originalArchonHome === undefined) {
+      delete process.env.ARCHON_HOME;
+    } else {
+      process.env.ARCHON_HOME = originalArchonHome;
+    }
+    if (originalArchonDocker === undefined) {
+      delete process.env.ARCHON_DOCKER;
+    } else {
+      process.env.ARCHON_DOCKER = originalArchonDocker;
     }
   });
 
@@ -109,6 +125,29 @@ describe('Workflow Loader', () => {
       await writeFile(join(workflowDir, 'build.yaml'), yaml);
       const result = await discoverWorkflows(testDir, { loadDefaults: false });
       expect(result.workflows[0].workflow.worktree).toEqual({ enabled: true });
+    });
+
+    it('should round-trip workflow-level on_failure_model (F1 fix)', async () => {
+      const workflowDir = join(testDir, '.archon', 'workflows');
+      await mkdir(workflowDir, { recursive: true });
+      // Real YAML fixture — exercise parseWorkflow from the producer's actual
+      // input format. Before this fix, workflowBaseSchema silently stripped
+      // on_failure_model at the root, so the cascade in dag-executor never
+      // fired for workflows like deploy-to-all-hosts.yaml and
+      // memexia-beads-mechanical.yaml that pin at the workflow level.
+      const yaml = [
+        'name: failover-test',
+        'description: workflow-level on_failure_model round-trip',
+        'on_failure_model: alibaba-coding-plan/qwen3.7-plus',
+        'nodes:',
+        '  - id: n',
+        '    prompt: p',
+      ].join('\n');
+      await writeFile(join(workflowDir, 'failover-test.yaml'), yaml);
+      const result = await discoverWorkflows(testDir, { loadDefaults: false });
+      expect(result.workflows[0].workflow.on_failure_model).toBe(
+        'alibaba-coding-plan/qwen3.7-plus'
+      );
     });
 
     it('should omit worktree block when not present (policy is caller-decides)', async () => {
@@ -659,6 +698,31 @@ nodes:
 
       // Should fail validation due to null description
       expect(workflows).toHaveLength(0);
+    });
+
+    it('parses always_run: true on a node', async () => {
+      const workflowDir = join(testDir, '.archon', 'workflows');
+      await mkdir(workflowDir, { recursive: true });
+
+      const yaml = `name: always-run-test
+description: Producer opts out of resume caching
+nodes:
+  - id: persist
+    bash: 'echo hi'
+    always_run: true
+  - id: consumer
+    command: consume
+    depends_on: [persist]
+`;
+      await writeFile(join(workflowDir, 'always-run.yaml'), yaml);
+
+      const result = await discoverWorkflows(testDir, { loadDefaults: false });
+      const workflows = result.workflows.map(ws => ws.workflow);
+
+      expect(workflows).toHaveLength(1);
+      expect(workflows[0].nodes[0].id).toBe('persist');
+      expect(workflows[0].nodes[0].always_run).toBe(true);
+      expect(workflows[0].nodes[1].always_run).toBeUndefined();
     });
   });
 
@@ -2512,6 +2576,49 @@ nodes:
       expect(result.errors).toHaveLength(0);
       // AI fields should produce a warning log
       expect(mockLogger.warn).toHaveBeenCalled();
+    });
+  });
+
+  describe('discoverWorkflows with null cwd (no project context)', () => {
+    it('skips project scope and returns no project-source workflows', async () => {
+      // When no codebase is registered the LIST endpoint passes null so bundled
+      // + home scopes can still surface. Discovery must not attempt to read a
+      // cwd-derived path and must not produce project-source entries.
+      const result = await discoverWorkflows(null, { loadDefaults: false });
+
+      // loadDefaults:false skips bundled and a clean test env has no home-
+      // scoped workflows, so the full result must be empty — without this the
+      // test would pass even if a stray project-path read were silently injected.
+      expect(result.workflows).toHaveLength(0);
+
+      const projectSourced = result.workflows.filter(w => w.source === 'project');
+      expect(projectSourced).toHaveLength(0);
+
+      // No project-step file/dir read errors — we never tried to access a project path.
+      const readErrors = result.errors.filter(e => e.errorType === 'read_error');
+      expect(readErrors).toHaveLength(0);
+    });
+
+    it('still loads bundled defaults when loadDefaults:true and cwd is null', async () => {
+      const result = await discoverWorkflows(null, { loadDefaults: true });
+
+      // No project-source entries (project step skipped).
+      const projectSourced = result.workflows.filter(w => w.source === 'project');
+      expect(projectSourced).toHaveLength(0);
+
+      // Bundled-source entries must surface — without this assertion the test
+      // would silently pass even if the bundled-defaults loader regressed.
+      const bundledSourced = result.workflows.filter(w => w.source === 'bundled');
+      expect(bundledSourced.length).toBeGreaterThan(0);
+    });
+
+    it('discoverWorkflowsWithConfig does not call loadConfig when cwd is null', async () => {
+      // The per-project config opt-out must not be evaluated when there is no
+      // project context — running loadConfig with no cwd would silently apply
+      // home-dir or working-dir defaults to a request that has neither.
+      const mockLoadConfig = mock(async () => ({ defaults: { loadDefaultWorkflows: true } }));
+      await discoverWorkflowsWithConfig(null, mockLoadConfig);
+      expect(mockLoadConfig).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,0 +1,147 @@
+/*
+ * Kairon Console — RawBlock skin port.
+ *
+ * Scoped to `.console-root` so upstream Cole console tokens don't bleed into
+ * the main app. Mirrors the :root palette in index.css (chat / dashboard).
+ */
+
+.console-root {
+  /* Surfaces */
+  --surface: #ffffff;
+  --surface-inset: #f0f0f0;
+  --surface-elevated: #ffffff;
+  --surface-hover: #e8e8e8;
+  --surface-variant: #f5f5f5;
+  --surface-bright: #e8e8e8;
+  --surface-accent: #f5f5f5;
+
+  /* Borders */
+  --border: #000000;
+  --border-bright: #333333;
+  --border-subtle: #cccccc;
+  --outline-variant: #cccccc;
+
+  /* Text */
+  --text-primary: #000000;
+  --text-secondary: #4a4a4a;
+  --text-tertiary: #666666;
+
+  /* Accent — RawBlock black + blue highlight */
+  --accent: #000000;
+  --accent-bright: #0000ff;
+  --accent-hover: #333333;
+  --accent-muted: #f0f0f0;
+  --accent-soft: rgb(0 0 0 / 0.06);
+  --accent-ring: rgb(0 0 0 / 0.25);
+  --accent-foreground: #ffffff;
+
+  /* Status */
+  --running: #0000ff;
+  --running-soft: rgb(0 0 255 / 0.12);
+  --success: #008000;
+  --success-soft: rgb(0 128 0 / 0.12);
+  --warning: #ffa500;
+  --warning-soft: rgb(255 165 0 / 0.14);
+  --error: #ff0000;
+  --error-soft: rgb(255 0 0 / 0.12);
+
+  /* Legacy brand aliases — mapped to RawBlock (no gradient) */
+  --brand-magenta: #000000;
+  --brand-magenta-2: #333333;
+  --brand-violet: #000000;
+  --brand-teal: #008000;
+  --brand-teal-2: #006600;
+  --brand-gradient: linear-gradient(180deg, #000000 0%, #000000 100%);
+  --brand-gradient-soft: rgb(0 0 0 / 0.04);
+
+  /* shadcn-compatible overrides */
+  --background: #ffffff;
+  --foreground: #000000;
+  --card: #ffffff;
+  --card-foreground: #000000;
+  --popover: #ffffff;
+  --popover-foreground: #000000;
+  --primary: #000000;
+  --primary-foreground: #ffffff;
+  --secondary: #f0f0f0;
+  --secondary-foreground: #000000;
+  --muted: #f0f0f0;
+  --muted-foreground: #666666;
+  --destructive: #ff0000;
+  --input: #f0f0f0;
+  --ring: #000000;
+
+  font-family:
+    'Work Sans',
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  letter-spacing: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.console-root .font-mono,
+.console-root code,
+.console-root pre,
+.console-root kbd,
+.console-root samp {
+  font-family: 'Space Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+.console-root *,
+.console-root *::before,
+.console-root *::after {
+  border-color: var(--border);
+}
+
+.console-root ::selection {
+  background: #000000;
+  color: #ffffff;
+}
+
+.console-root :focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 2px;
+}
+
+/* RawBlock structural chrome */
+.console-root header {
+  border-bottom-width: 3px;
+  border-bottom-color: #000000;
+  background: #ffffff;
+}
+
+.console-root nav[aria-label='Projects'] {
+  border-right-width: 3px;
+  border-right-color: #000000;
+}
+
+/* Cards & panels — match dashboard border weight */
+.console-root article,
+.console-root [role='dialog'] > div {
+  border-width: 3px;
+  border-color: #000000;
+}
+
+/* RawBlock brand utilities (no gradient) */
+.console-root .brand-text {
+  color: #000000;
+  font-weight: 600;
+}
+
+.console-root .brand-bar {
+  background: #000000;
+}
+
+.console-root .brand-bar-soft {
+  background: rgb(0 0 0 / 0.04);
+}
+
+/* Square corners on structural elements; keep dots circular */
+.console-root .rounded-md,
+.console-root .rounded-lg {
+  border-radius: 0;
+}

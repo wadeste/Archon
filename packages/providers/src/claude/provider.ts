@@ -40,8 +40,7 @@ import { parseClaudeConfig } from './config';
 import { CLAUDE_CAPABILITIES } from './capabilities';
 import { resolveClaudeBinaryPath } from './binary-resolver';
 import { createLogger } from '@archon/paths';
-import { readFile } from 'fs/promises';
-import { resolve, isAbsolute } from 'path';
+import { loadMcpConfig } from '../mcp/config';
 
 /** Lazy-initialized logger (deferred so test mocks can intercept createLogger) */
 let cachedLog: ReturnType<typeof createLogger> | undefined;
@@ -203,96 +202,6 @@ export function getProcessUid(): number | undefined {
   return typeof process.getuid === 'function' ? process.getuid() : undefined;
 }
 
-// ─── MCP Config Loading (absorbed from dag-executor) ───────────────────────
-
-/**
- * Expand $VAR_NAME references in string-valued records from process.env.
- */
-function expandEnvVarsInRecord(
-  record: Record<string, unknown>,
-  missingVars: string[]
-): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const [key, val] of Object.entries(record)) {
-    if (typeof val !== 'string') {
-      getLog().warn({ key, valueType: typeof val }, 'mcp_env_value_coerced_to_string');
-      result[key] = String(val);
-      continue;
-    }
-    result[key] = val.replace(/\$([A-Z_][A-Z0-9_]*)/g, (_, varName: string) => {
-      const envVal = process.env[varName];
-      if (envVal === undefined) {
-        missingVars.push(varName);
-      }
-      return envVal ?? '';
-    });
-  }
-  return result;
-}
-
-function expandEnvVars(config: Record<string, unknown>): {
-  expanded: Record<string, unknown>;
-  missingVars: string[];
-} {
-  const result: Record<string, unknown> = {};
-  const missingVars: string[] = [];
-  for (const [serverName, serverConfig] of Object.entries(config)) {
-    if (typeof serverConfig !== 'object' || serverConfig === null) {
-      getLog().warn({ serverName, valueType: typeof serverConfig }, 'mcp_server_config_not_object');
-      continue;
-    }
-    const server = { ...(serverConfig as Record<string, unknown>) };
-    if (server.env && typeof server.env === 'object') {
-      server.env = expandEnvVarsInRecord(server.env as Record<string, unknown>, missingVars);
-    }
-    if (server.headers && typeof server.headers === 'object') {
-      server.headers = expandEnvVarsInRecord(
-        server.headers as Record<string, unknown>,
-        missingVars
-      );
-    }
-    result[serverName] = server;
-  }
-  return { expanded: result, missingVars };
-}
-
-/**
- * Load MCP server config from a JSON file and expand environment variables.
- */
-export async function loadMcpConfig(
-  mcpPath: string,
-  cwd: string
-): Promise<{ servers: Record<string, unknown>; serverNames: string[]; missingVars: string[] }> {
-  const fullPath = isAbsolute(mcpPath) ? mcpPath : resolve(cwd, mcpPath);
-
-  let raw: string;
-  try {
-    raw = await readFile(fullPath, 'utf-8');
-  } catch (err) {
-    const e = err as NodeJS.ErrnoException;
-    if (e.code === 'ENOENT') {
-      throw new Error(`MCP config file not found: ${mcpPath} (resolved to ${fullPath})`);
-    }
-    throw new Error(`Failed to read MCP config file: ${mcpPath} — ${e.message}`);
-  }
-
-  let parsed: Record<string, unknown>;
-  try {
-    parsed = JSON.parse(raw) as Record<string, unknown>;
-  } catch (parseErr) {
-    const detail = (parseErr as SyntaxError).message;
-    throw new Error(`MCP config file is not valid JSON: ${mcpPath} — ${detail}`);
-  }
-
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    throw new Error(`MCP config must be a JSON object (Record<string, ServerConfig>): ${mcpPath}`);
-  }
-
-  const { expanded, missingVars } = expandEnvVars(parsed);
-  const serverNames = Object.keys(expanded);
-  return { servers: expanded, serverNames, missingVars };
-}
-
 // ─── SDK Hooks Building (absorbed from dag-executor) ───────────────────────
 
 /** YAML hook matcher shape (matches @archon/workflows/schemas/dag-node WorkflowNodeHooks) */
@@ -436,19 +345,20 @@ async function applyNodeConfig(
   if (nodeConfig.skills) {
     const skills = nodeConfig.skills;
     const agentId = 'dag-node-skills';
-    const agentTools = options.tools ? [...(options.tools as string[]), 'Skill'] : ['Skill'];
     const agentDef: {
       description: string;
       prompt: string;
       skills: string[];
-      tools: string[];
+      tools?: string[];
       model?: string;
     } = {
       description: 'DAG node with skills',
       prompt: `You have preloaded skills: ${skills.join(', ')}. Use them when relevant.`,
       skills,
-      tools: agentTools,
     };
+    if (options.tools) {
+      agentDef.tools = [...(options.tools as string[]), 'Skill'];
+    }
     if (options.model) agentDef.model = options.model;
     options.agents = { [agentId]: agentDef };
     options.agent = agentId;
@@ -622,7 +532,7 @@ function buildBaseClaudeOptions(
     permissionMode: 'bypassPermissions',
     allowDangerouslySkipPermissions: true,
     systemPrompt: requestOptions?.systemPrompt ?? { type: 'preset', preset: 'claude_code' },
-    settingSources: assistantDefaults.settingSources ?? ['project'],
+    settingSources: assistantDefaults.settingSources ?? ['project', 'user'],
     hooks: buildToolCaptureHooks(toolResultQueue),
     stderr: (data: string): void => {
       const output = data.trim();
@@ -716,6 +626,88 @@ function buildToolCaptureHooks(toolResultQueue: ToolResultEntry[]): Options['hoo
 // ─── Stream Normalizer ───────────────────────────────────────────────────
 
 /**
+ * Timeout for detecting silent subprocess death at the stream level.
+ *
+ * When the Claude subprocess dies, the SDK's async generator hangs forever
+ * on the next `.next()` call — no events, no errors, no `.done`. The DAG
+ * executor's `withIdleTimeout` (30 min) is the current escape hatch, but
+ * that's 30 minutes of dead waiting.
+ *
+ * This wrapper races each `.next()` call against a shorter timeout (default
+ * 3 min). If the timeout wins, the subprocess is considered dead and a
+ * synthetic error event is emitted so the DAG executor fails the node
+ * immediately instead of hanging.
+ *
+ * Configurable via `ARCHON_STREAM_DEATH_TIMEOUT_MS` env var.
+ */
+function getStreamDeathTimeoutMs(): number {
+  const raw = process.env.ARCHON_STREAM_DEATH_TIMEOUT_MS;
+  if (raw) {
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return 3 * 60 * 1000; // 3 minutes
+}
+
+/**
+ * Wraps an SDK event generator with silent subprocess death detection.
+ *
+ * Races each `.next()` call against a stream-death timeout. If the
+ * subprocess is alive and producing events, `.next()` resolves before
+ * the timeout. If the subprocess has died (SDK generator hangs), the
+ * timeout wins and we emit a synthetic error event.
+ *
+ * @param events - Raw SDK event generator from query()
+ * @param cwd - Working directory (logged for diagnostics)
+ * @param abortController - AbortController to signal subprocess termination
+ */
+async function* withSubprocessDeathDetection<T extends { type: string }>(
+  events: AsyncGenerator<T>,
+  cwd: string,
+  abortController: AbortController
+): AsyncGenerator<T> {
+  const deathTimeoutMs = getStreamDeathTimeoutMs();
+
+  while (true) {
+    // Race the SDK's .next() against a death-detection timeout.
+    // If the subprocess is alive, .next() resolves with an event
+    // (or {done: true} when the stream ends) before the timeout.
+    // If the subprocess has died, .next() hangs and the timeout wins.
+    // Holder for the death timer so it can be cancelled when .next() wins.
+    const deathTimer: { id?: ReturnType<typeof setTimeout> } = {};
+    const deathPromise = new Promise<IteratorResult<T>>(resolve => {
+      deathTimer.id = setTimeout(() => {
+        getLog().error({ cwd, timeoutMs: deathTimeoutMs }, 'claude.stream_death_timeout');
+        abortController.abort();
+        resolve({
+          done: true,
+          value: {
+            type: 'result',
+            sessionId: undefined,
+            isError: true,
+            errorSubtype: 'subprocess_dead',
+            errors: [
+              'Claude Code subprocess appears to have died. ' +
+                `No SDK events received within ${deathTimeoutMs / 1000}s. ` +
+                'The SDK async generator did not emit a result event before the process terminated.',
+            ],
+            stopReason: 'subprocess_exit',
+          } as unknown as T,
+        });
+      }, deathTimeoutMs);
+    });
+
+    const result = await Promise.race([events.next(), deathPromise]);
+
+    // Cancel the death timeout — .next() won the race
+    if (deathTimer.id !== undefined) clearTimeout(deathTimer.id);
+
+    if (result.done) return;
+    yield result.value;
+  }
+}
+
+/**
  * Normalize raw Claude SDK events into Archon MessageChunks.
  * Drains the tool result queue between events (populated by SDK hooks).
  */
@@ -796,7 +788,14 @@ async function* streamClaudeMessages(
       };
       const tokens = normalizeClaudeUsage(resultMsg.usage);
       const sdkErrors = Array.isArray(resultMsg.errors) ? resultMsg.errors : undefined;
-      if (resultMsg.is_error) {
+      // SDKResultSuccess declares `is_error: boolean` (not literal false). When a
+      // model terminates via a configured stop sequence (stop_reason ===
+      // 'stop_sequence') the SDK can set is_error: true while keeping
+      // subtype: 'success' — its encoding of "non-default termination, not a
+      // failure". Treat that pair as a clean success so downstream consumers
+      // (which gate failure on isError) don't misclassify it.
+      const isRealError = resultMsg.is_error === true && resultMsg.subtype !== 'success';
+      if (isRealError) {
         getLog().error(
           {
             sessionId: resultMsg.session_id,
@@ -806,6 +805,14 @@ async function* streamClaudeMessages(
           },
           'claude.result_is_error'
         );
+      } else if (resultMsg.is_error === true && resultMsg.subtype === 'success') {
+        getLog().debug(
+          {
+            sessionId: resultMsg.session_id,
+            stopReason: resultMsg.stop_reason,
+          },
+          'claude.result_success_validated'
+        );
       }
       yield {
         type: 'result',
@@ -814,8 +821,8 @@ async function* streamClaudeMessages(
         ...(resultMsg.structured_output !== undefined
           ? { structuredOutput: resultMsg.structured_output }
           : {}),
-        ...(resultMsg.is_error ? { isError: true, errorSubtype: resultMsg.subtype } : {}),
-        ...(resultMsg.is_error && sdkErrors?.length ? { errors: sdkErrors } : {}),
+        ...(isRealError ? { isError: true, errorSubtype: resultMsg.subtype } : {}),
+        ...(isRealError && sdkErrors?.length ? { errors: sdkErrors } : {}),
         ...(resultMsg.total_cost_usd !== undefined ? { cost: resultMsg.total_cost_usd } : {}),
         ...(resultMsg.stop_reason != null ? { stopReason: resultMsg.stop_reason } : {}),
         ...(resultMsg.num_turns !== undefined ? { numTurns: resultMsg.num_turns } : {}),
@@ -1004,14 +1011,27 @@ export class ClaudeProvider implements IAgentProvider {
       }
 
       try {
-        // 4. Run query with first-event timeout protection
+        // 4. Run query with subprocess death detection + first-event timeout
         const rawEvents = query({ prompt, options });
+
+        // Wrap with subprocess death detection — polls OS process table
+        // between SDK events and injects a synthetic error if the Claude
+        // subprocess disappears without the SDK emitting a result event.
+        // This prevents the DAG executor's `for await` loop from hanging
+        // for 30 minutes (STEP_IDLE_TIMEOUT_MS) on a dead subprocess.
+        const deathAwareEvents = withSubprocessDeathDetection(rawEvents, cwd, controller);
+
         const timeoutMs = getFirstEventTimeoutMs();
         const diagnostics = buildFirstEventHangDiagnostics(
           options.env as Record<string, string>,
           options.model
         );
-        const events = withFirstMessageTimeout(rawEvents, controller, timeoutMs, diagnostics);
+        const events = withFirstMessageTimeout(
+          deathAwareEvents,
+          controller,
+          timeoutMs,
+          diagnostics
+        );
 
         // 5. Stream normalized events
         yield* streamClaudeMessages(events, toolResultQueue);

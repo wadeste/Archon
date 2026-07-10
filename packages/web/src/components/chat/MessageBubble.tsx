@@ -1,5 +1,5 @@
 import { memo, useMemo, useState } from 'react';
-import { Copy, Check, Paperclip } from 'lucide-react';
+import { Copy, Check, Paperclip, X } from 'lucide-react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import remarkBreaks from 'remark-breaks';
@@ -32,7 +32,7 @@ function makeMarkdownComponents(
   return {
     pre: ({ children, ...props }: React.ComponentPropsWithoutRef<'pre'>): React.ReactElement => (
       <pre
-        className="overflow-x-auto rounded-lg border border-border bg-surface p-4 font-mono text-sm"
+        className="overflow-x-auto border-[3px] border-black bg-[#F0F0F0] p-4 font-mono text-sm"
         {...props}
       >
         {children}
@@ -140,6 +140,7 @@ function MessageBubbleRaw({ message }: MessageBubbleProps): React.ReactElement {
   const isUser = message.role === 'user';
   const isThinking = message.isStreaming && !message.content;
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
   const [artifactViewer, setArtifactViewer] = useState<{ runId: string; filename: string } | null>(
     null
   );
@@ -153,12 +154,22 @@ function MessageBubbleRaw({ message }: MessageBubbleProps): React.ReactElement {
   );
 
   const copyMessage = (): void => {
-    void navigator.clipboard.writeText(message.content).then(() => {
-      setCopied(true);
-      setTimeout(() => {
-        setCopied(false);
-      }, 1500);
-    });
+    void navigator.clipboard
+      .writeText(message.content)
+      .then(() => {
+        setCopied(true);
+        setCopyError(false);
+        setTimeout(() => {
+          setCopied(false);
+        }, 1500);
+      })
+      .catch(error => {
+        console.debug('Clipboard write failed:', error);
+        setCopyError(true);
+        setTimeout(() => {
+          setCopyError(false);
+        }, 2000);
+      });
   };
 
   return (
@@ -168,26 +179,28 @@ function MessageBubbleRaw({ message }: MessageBubbleProps): React.ReactElement {
           className={cn(
             'relative',
             isUser
-              ? 'max-w-[70%] rounded-2xl rounded-br-sm bg-accent-muted px-4 py-2.5'
-              : 'max-w-full rounded-lg border-l-2 border-primary/30 pl-4'
+              ? 'max-w-[70%] border-[3px] border-black bg-black px-4 py-3'
+              : 'max-w-full border-l-[3px] border-l-black pl-4'
           )}
         >
           {isUser ? (
             <div className="flex flex-col gap-1.5">
               <div className="flex items-start gap-2">
-                <p className="text-sm text-text-primary whitespace-pre-wrap flex-1">
+                <p className="text-sm text-white whitespace-pre-wrap break-words min-w-0 flex-1">
                   {message.content}
                 </p>
                 <button
                   onClick={copyMessage}
                   className="shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-text-tertiary hover:text-text-primary"
-                  title="Copy message"
-                  aria-label={copied ? 'Copied' : 'Copy message'}
+                  title={copyError ? 'Failed to copy' : 'Copy message'}
+                  aria-label={copied ? 'Copied' : copyError ? 'Failed to copy' : 'Copy message'}
                 >
                   {copied ? (
                     <Check className="h-3.5 w-3.5 text-success" />
+                  ) : copyError ? (
+                    <X className="h-3.5 w-3.5 text-error" />
                   ) : (
-                    <Copy className="h-3.5 w-3.5" />
+                    <Copy className="h-3.5 w-3.5 text-white" />
                   )}
                 </button>
               </div>
@@ -196,7 +209,7 @@ function MessageBubbleRaw({ message }: MessageBubbleProps): React.ReactElement {
                   {message.files.map((file: FileAttachment) => (
                     <div
                       key={file.id}
-                      className="flex items-center gap-1 rounded-md bg-black/10 px-1.5 py-0.5 text-xs text-text-secondary"
+                      className="flex items-center gap-1 border border-white/30 px-1.5 py-0.5 text-xs text-white"
                       title={file.name}
                     >
                       <Paperclip className="h-3 w-3 shrink-0" />
@@ -207,28 +220,31 @@ function MessageBubbleRaw({ message }: MessageBubbleProps): React.ReactElement {
               )}
             </div>
           ) : (
-            <div className="chat-markdown max-w-none text-sm text-text-primary">
+            <div className="chat-markdown max-w-none text-sm text-black">
               {isThinking && (
-                <div className="flex items-center gap-1.5 py-1">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-text-tertiary" />
-                  <span
-                    className="h-1.5 w-1.5 animate-pulse rounded-full bg-text-tertiary"
-                    style={{ animationDelay: '0.2s' }}
-                  />
-                  <span
-                    className="h-1.5 w-1.5 animate-pulse rounded-full bg-text-tertiary"
-                    style={{ animationDelay: '0.4s' }}
-                  />
+                <div className="flex items-center gap-2 py-1 text-sm text-[#666666]">
+                  <span className="sr-only">Thinking</span>
+                  <div className="flex items-center gap-1.5" aria-hidden="true">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-none bg-[#666666]" />
+                    <span
+                      className="h-1.5 w-1.5 animate-pulse rounded-none bg-[#666666]"
+                      style={{ animationDelay: '0.2s' }}
+                    />
+                    <span
+                      className="h-1.5 w-1.5 animate-pulse rounded-none bg-[#666666]"
+                      style={{ animationDelay: '0.4s' }}
+                    />
+                  </div>
                 </div>
               )}
               {isJsonString(message.content) ? (
                 <details className="group">
-                  <summary className="cursor-pointer text-sm text-text-secondary hover:text-text-primary">
-                    <span className="text-xs bg-surface-secondary rounded px-1.5 py-0.5 font-mono">
+                  <summary className="cursor-pointer text-sm text-[#4A4A4A] hover:text-black">
+                    <span className="text-xs bg-[#F0F0F0] px-1.5 py-0.5 font-mono">
                       JSON output
                     </span>
                   </summary>
-                  <pre className="mt-2 text-xs bg-surface-inset rounded p-3 overflow-x-auto">
+                  <pre className="mt-2 text-xs bg-white border-[3px] border-black p-3 overflow-x-auto">
                     {JSON.stringify(JSON.parse(message.content.trim()) as unknown, null, 2)}
                   </pre>
                 </details>
@@ -242,13 +258,13 @@ function MessageBubbleRaw({ message }: MessageBubbleProps): React.ReactElement {
                 </ReactMarkdown>
               )}
               {message.isStreaming && message.content && (
-                <span className="inline-block h-4 w-0.5 animate-pulse bg-primary align-text-bottom" />
+                <span className="inline-block h-4 w-0.5 animate-pulse bg-black align-text-bottom" />
               )}
             </div>
           )}
 
           {!isThinking && (
-            <div className="mt-0.5 text-[11px] text-text-tertiary">
+            <div className="mt-0.5 text-[11px] text-[#666666]">
               {new Date(message.timestamp).toLocaleTimeString()}
             </div>
           )}
