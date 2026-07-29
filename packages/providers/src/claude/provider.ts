@@ -94,7 +94,33 @@ function buildSubprocessEnv(): NodeJS.ProcessEnv {
     { authMode },
     authMode === 'global' ? 'using_global_auth' : 'using_explicit_tokens'
   );
-  return { ...process.env };
+  // Global-auth mode means the Claude CLI's own login is the intended
+  // credential path. Base-URL/token redirect vars that leak into the
+  // parent environment mid-run (observed: an in-process SDK layer applying
+  // them after the first spawn) would silently reroute subprocess traffic
+  // to a different upstream that serves a different model. Scrub them so
+  // 'global' auth means what it says. ANTHROPIC_API_KEY is deliberately
+  // NOT scrubbed: it is a legitimate direct-auth channel for the CLI.
+  const isRedirectVar = (key: string): boolean =>
+    key === 'ANTHROPIC_BASE_URL' ||
+    key === 'ANTHROPIC_AUTH_TOKEN' ||
+    key === 'ANTHROPIC_MODEL' ||
+    key === 'CLAUDE_CODE_SUBAGENT_MODEL' ||
+    key.startsWith('ANTHROPIC_DEFAULT_');
+  const env: NodeJS.ProcessEnv = {};
+  const scrubbed: string[] = [];
+  for (const [key, value] of Object.entries(process.env)) {
+    if (!hasExplicitTokens && isRedirectVar(key)) {
+      scrubbed.push(key);
+    } else {
+      env[key] = value;
+    }
+  }
+  if (scrubbed.length > 0) {
+    // Key names only — values may be secrets.
+    getLog().info({ scrubbed }, 'claude.global_auth_env_scrubbed');
+  }
+  return env;
 }
 
 /** Max retries for transient subprocess failures */
