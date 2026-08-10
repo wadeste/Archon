@@ -21,11 +21,16 @@ export const FATAL_PATTERNS = [
   '401',
   '403',
   'credit balance',
-  'auth error',
+  'session limit', // Claude subscription 5h window — covers every detectCreditExhaustion session variant
+  'usage limit reached', // Claude CLI quota string, e.g. "Claude AI usage limit reached|<ts>"
+  'credit exhaustion', // synthesized "Credit exhaustion detected — resume when credits reset"
   'model not found',
   'invalid model',
   'no credentials',
 ];
+
+/** Ambiguous fatal patterns that yield to concrete transient evidence (#2177). */
+const FALLBACK_FATAL_PATTERNS = ['auth error'];
 
 /** Transient error patterns — temporary issues that may resolve with retry. */
 export const TRANSIENT_PATTERNS = [
@@ -43,6 +48,7 @@ export const TRANSIENT_PATTERNS = [
   '504',
   '529',
   'overloaded',
+  'at capacity', // Codex/OpenAI model-level saturation
   'network error',
   'socket hang up',
   'exited with code',
@@ -70,5 +76,6 @@ export function classifyError(error: Error): ErrorType {
   const message = error.message.toLowerCase();
   if (matchesPattern(message, FATAL_PATTERNS)) return 'FATAL';
   if (matchesPattern(message, TRANSIENT_PATTERNS)) return 'TRANSIENT';
+  if (matchesPattern(message, FALLBACK_FATAL_PATTERNS)) return 'FATAL';
   return 'UNKNOWN';
 }

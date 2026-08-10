@@ -7,7 +7,6 @@
  */
 import { readFile } from 'fs/promises';
 import { join } from 'path';
-import { classifyError } from '@archon/providers/types';
 import type { IWorkflowPlatform, WorkflowDeps, WorkflowMessageMetadata } from './deps';
 import * as archonPaths from '@archon/paths';
 import { BUNDLED_COMMANDS, isBinaryBuild } from './defaults/bundled-defaults';
@@ -23,17 +22,101 @@ function getLog(): ReturnType<typeof createLogger> {
 }
 
 // ─── Error Classification ────────────────────────────────────────────────────
-// Single implementation lives in @archon/providers (shared/classify-error.ts),
-// exposed through the contract layer. Re-exported here for existing internal
-// callers (executor.ts, dag-executor.ts, tests).
 
-export {
-  classifyError,
-  matchesPattern,
-  FATAL_PATTERNS,
-  TRANSIENT_PATTERNS,
-} from '@archon/providers/types';
-export type { ErrorType } from '@archon/providers/types';
+/** Result of error classification */
+export type ErrorType = 'TRANSIENT' | 'FATAL' | 'UNKNOWN';
+
+/**
+ * Fatal error patterns - errors that won't resolve with retry: authentication/
+ * authorization failures and provider quota/limit-window exhaustion (a retry
+ * inside the same limit window is guaranteed to fail — see #2177).
+ */
+export const FATAL_PATTERNS = [
+  'unauthorized',
+  'forbidden',
+  'invalid token',
+  'authentication failed',
+  'permission denied',
+  '401',
+  '403',
+  'credit balance',
+  'session limit', // Claude subscription 5h window — covers every detectCreditExhaustion session variant
+  'usage limit reached', // Claude CLI quota string, e.g. "Claude AI usage limit reached|<ts>"
+  'credit exhaustion', // synthesized "Credit exhaustion detected — resume when credits reset"
+];
+
+/** Ambiguous fatal patterns that yield to concrete transient evidence. */
+const FALLBACK_FATAL_PATTERNS = ['auth error'];
+
+/** Transient error patterns - temporary issues that may resolve with retry */
+export const TRANSIENT_PATTERNS = [
+  'timeout',
+  'econnrefused',
+  'econnreset',
+  'etimedout',
+  'rate limit',
+  'too many requests',
+  '429',
+  '503',
+  '502',
+  '529', // Anthropic HTTP 529 = service overloaded
+  'overloaded', // Anthropic/Minimax overload message text
+  'at capacity', // Codex/OpenAI model-level saturation
+  'network error',
+  'socket hang up',
+  'exited with code',
+  'claude code crash',
+];
+
+/**
+ * Check if error message matches any pattern in the list.
+ */
+export function matchesPattern(message: string, patterns: string[]): boolean {
+  return patterns.some(pattern => message.includes(pattern));
+}
+
+/**
+ * Classify an error to determine if it's transient (can retry) or fatal (should fail).
+ * Decisive FATAL patterns take priority over TRANSIENT patterns to prevent an error
+ * containing both (e.g. "unauthorized: process exited with code 1") from being retried.
+ * Ambiguous provider wrapper text such as "auth error" is fatal only when no concrete
+ * transient signal matches.
+ */
+export function classifyError(error: Error): ErrorType {
+  const message = error.message.toLowerCase();
+
+  if (matchesPattern(message, FATAL_PATTERNS)) {
+    return 'FATAL';
+  }
+  if (matchesPattern(message, TRANSIENT_PATTERNS)) {
+    return 'TRANSIENT';
+  }
+  if (matchesPattern(message, FALLBACK_FATAL_PATTERNS)) {
+    return 'FATAL';
+  }
+  return 'UNKNOWN';
+}
+
+/**
+ * Map the retry-oriented {@link ErrorType} to the telemetry wire enum. The
+ * telemetry event carries ONLY this fixed-enum class — never error text.
+ */
+export function toTelemetryErrorClass(errorType: ErrorType): archonPaths.WorkflowErrorClass {
+  switch (errorType) {
+    case 'FATAL':
+      return 'fatal';
+    case 'TRANSIENT':
+      return 'transient';
+    case 'UNKNOWN':
+      return 'unknown';
+    default: {
+      // Exhaustiveness guard: a future ErrorType variant fails compilation
+      // here instead of silently sending `undefined` to the telemetry wire.
+      const exhaustive: never = errorType;
+      return exhaustive;
+    }
+  }
+}
 
 // ─── Subprocess Failure Formatting ───────────────────────────────────────────
 
@@ -113,9 +196,16 @@ export function formatSubprocessFailure(
   };
 }
 
-// ─── Credit Exhaustion Detection ────────────────────────────────────────────
+// ─── Credit/Limit Exhaustion Detection ──────────────────────────────────────
 
-/** Patterns that indicate credit/quota exhaustion in streamed assistant output */
+/** Patterns that indicate a subscription session limit in streamed assistant output */
+const SESSION_LIMIT_OUTPUT_PATTERNS = [
+  'hit your session limit',
+  'session limit reached',
+  'session limit has been reached',
+];
+
+/** Patterns that indicate pay-per-token credit exhaustion in streamed assistant output */
 const CREDIT_EXHAUSTION_OUTPUT_PATTERNS = [
   "you're out of extra usage",
   'out of credits',
@@ -123,18 +213,38 @@ const CREDIT_EXHAUSTION_OUTPUT_PATTERNS = [
   'insufficient credit',
 ];
 
+/** Extract a reset-time clause from a session-limit message, e.g. "resets 3am (America/Mexico_City)". */
+function extractResetTime(text: string): string | null {
+  const match = /resets\s+([^\n·.!]+)/i.exec(text);
+  return match ? match[1].trim() : null;
+}
+
 /**
- * Detect credit exhaustion in streamed node output text.
+ * Detect credit/session-limit exhaustion in streamed node output text.
  *
- * The Claude SDK returns credit exhaustion as a normal assistant text message
- * rather than throwing. This function checks the accumulated output for known
- * credit exhaustion phrases.
+ * The Claude SDK surfaces both subscription session limits and pay-per-token
+ * credit exhaustion as normal assistant text messages rather than thrown errors.
+ * This function checks the accumulated output for known phrases and returns an
+ * actionable error string, or null if no limit is detected.
+ *
+ * @returns null if no limit detected; a session-limit string (instructs user to
+ * abandon and retry after reset) or a credit-exhaustion string (instructs user
+ * to resume when credits refill).
  */
 export function detectCreditExhaustion(text: string): string | null {
   const lower = text.toLowerCase();
+
+  if (SESSION_LIMIT_OUTPUT_PATTERNS.some(p => lower.includes(p))) {
+    const resetTime = extractResetTime(text);
+    return resetTime
+      ? `Claude session limit reached — resets ${resetTime}. Abandon this run and retry after reset.`
+      : 'Claude session limit reached — abandon this run and retry when the session resets.';
+  }
+
   if (CREDIT_EXHAUSTION_OUTPUT_PATTERNS.some(p => lower.includes(p))) {
     return 'Credit exhaustion detected — resume when credits reset';
   }
+
   return null;
 }
 
@@ -302,6 +412,9 @@ export const CONTEXT_VAR_PATTERN_STR =
  * - $WORKFLOW_ID - The workflow run ID
  * - $USER_MESSAGE, $ARGUMENTS - The user's trigger message
  * - $ARTIFACTS_DIR - External artifacts directory for this workflow run
+ * - $STATE_DIR - External per-PROJECT cross-run state directory (shared by every
+ *   workflow in the project; pre-created by the executor). Throws if referenced
+ *   without a resolved value.
  * - $BASE_BRANCH - The base branch (from config or auto-detected)
  * - $CONTEXT, $EXTERNAL_CONTEXT, $ISSUE_CONTEXT - GitHub issue/PR context (if available)
  * - $DOCS_DIR - Documentation directory path (configured or default 'docs/')
@@ -326,13 +439,25 @@ export function substituteWorkflowVariables(
   loopUserInput?: string,
   rejectionReason?: string,
   loopPrevOutput?: string,
-  options?: { shellSafe?: boolean }
+  options?: { shellSafe?: boolean; stateDir?: string }
 ): { prompt: string; contextSubstituted: boolean } {
   // Fail fast if the prompt references $BASE_BRANCH but no base branch could be resolved
   if (!baseBranch && prompt.includes('$BASE_BRANCH')) {
     throw new Error(
       'No base branch could be resolved. Auto-detection failed and `worktree.baseBranch` is not set in .archon/config.yaml. ' +
         'Set the config value or use the --from flag to select a branch (e.g., --from dev).'
+    );
+  }
+
+  // Same fail-fast for $STATE_DIR. The state directory is threaded from the
+  // executor to every substitution site; a site that forgot to pass it would
+  // otherwise leave the variable literal (AI nodes) or empty (shell nodes),
+  // silently writing state to the wrong place. Loud beats silent.
+  if (!options?.stateDir && prompt.includes('$STATE_DIR')) {
+    throw new Error(
+      '$STATE_DIR is referenced but no state directory was resolved for this run. ' +
+        '$STATE_DIR is only available inside a workflow run; if you are seeing this from a workflow node, ' +
+        'please report it as a bug.'
     );
   }
 
@@ -345,6 +470,9 @@ export function substituteWorkflowVariables(
   let result = prompt
     .replace(/\$WORKFLOW_ID/g, workflowId)
     .replace(/\$ARTIFACTS_DIR/g, artifactsDir)
+    // Engine-controlled like $ARTIFACTS_DIR — substituted even under shellSafe,
+    // or `bash:`/`script:` bodies would never see it.
+    .replace(/\$STATE_DIR/g, options?.stateDir ?? '')
     .replace(/\$BASE_BRANCH/g, baseBranch)
     .replace(/\$DOCS_DIR/g, resolvedDocsDir);
 
@@ -393,6 +521,8 @@ export function substituteWorkflowVariables(
  * @param docsDir - The resolved docs directory for $DOCS_DIR substitution
  * @param issueContext - Optional GitHub issue/PR context to substitute or append
  * @param logLabel - Human-readable label for logging (e.g., 'workflow step prompt')
+ * @param options - Forwarded to {@link substituteWorkflowVariables}; carries `stateDir`
+ *   for `$STATE_DIR`, which throws when referenced without one.
  * @returns The final prompt with variables substituted and context optionally appended
  */
 export function buildPromptWithContext(
@@ -403,7 +533,8 @@ export function buildPromptWithContext(
   baseBranch: string,
   docsDir: string,
   issueContext: string | undefined,
-  logLabel: string
+  logLabel: string,
+  options?: { shellSafe?: boolean; stateDir?: string }
 ): string {
   const { prompt, contextSubstituted } = substituteWorkflowVariables(
     template,
@@ -412,7 +543,11 @@ export function buildPromptWithContext(
     artifactsDir,
     baseBranch,
     docsDir,
-    issueContext
+    issueContext,
+    undefined,
+    undefined,
+    undefined,
+    options
   );
 
   if (issueContext && !contextSubstituted) {

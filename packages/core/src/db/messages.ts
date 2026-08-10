@@ -2,6 +2,7 @@
  * Database operations for conversation messages (Web UI history and orchestrator prompt enrichment)
  */
 import { pool, getDialect, getDatabaseType } from './connection';
+import type { MessageRow } from '../schemas/message';
 import { createLogger } from '@archon/paths';
 
 /** Lazy-initialized logger (deferred so test mocks can intercept createLogger) */
@@ -11,15 +12,7 @@ function getLog(): ReturnType<typeof createLogger> {
   return cachedLog;
 }
 
-export interface MessageRow {
-  id: string;
-  conversation_id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  metadata: string; // JSON string - parsed by frontend and server-side (orchestrator prompt enrichment)
-  user_id: string | null; // FK to remote_agent_users; NULL for assistant rows and rows that predate the column
-  created_at: string;
-}
+export type { MessageRow } from '../schemas/message';
 
 /**
  * Add a message to conversation history.
@@ -55,6 +48,8 @@ export async function addMessage(
  * List messages for a conversation, oldest first.
  * Fetches the newest `limit` messages so that the most recent history is always
  * returned, then reverses to preserve chronological (oldest-first) order.
+ * `id DESC` breaks ties between rows sharing a created_at (SQLite stores
+ * 1-second granularity) so the LIMIT window is stable across refetches.
  * conversationId is the database UUID (not platform_conversation_id).
  */
 export async function listMessages(
@@ -64,7 +59,7 @@ export async function listMessages(
   const result = await pool.query<MessageRow>(
     `SELECT * FROM remote_agent_messages
      WHERE conversation_id = $1
-     ORDER BY created_at DESC
+     ORDER BY created_at DESC, id DESC
      LIMIT $2`,
     [conversationId, limit]
   );
@@ -90,7 +85,8 @@ export async function getRecentWorkflowResultMessages(
       `SELECT id, content, metadata FROM remote_agent_messages
        WHERE conversation_id = $1
        AND ${metadataFilter}
-       ORDER BY created_at DESC
+       -- id DESC tie-breaker: see listMessages() above for why.
+       ORDER BY created_at DESC, id DESC
        LIMIT $2`,
       [conversationId, limit]
     );

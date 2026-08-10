@@ -12,7 +12,7 @@ import { WorkflowPicker } from './WorkflowPicker';
 import { useEntity, invalidate } from '../store/cache';
 import { K } from '../store/keys';
 import * as skill from '../skills';
-import type { Workflow } from '../primitives/workflow';
+import { orderWithRecommended } from '../lib/recommended';
 
 interface DraftRunCardProps {
   projectId: string;
@@ -123,15 +123,16 @@ export function DraftRunCard({ projectId, projectCwd }: DraftRunCardProps): Reac
     setFiles(prev => prev.filter((_, i) => i !== idx));
   };
 
-  const { data: workflows } = useEntity<Workflow[]>(K.workflows(projectCwd), () =>
+  const { data: workflowData } = useEntity(K.workflows(projectCwd), () =>
     skill.listWorkflows(projectCwd)
   );
 
-  // Sort project-scoped first, then global, then bundled; alpha within each.
-  const sortedWorkflows = (workflows ?? []).slice().sort((a, b) => {
-    const rank = { project: 0, global: 1, bundled: 2 } as const;
-    return rank[a.source] - rank[b.source] || a.name.localeCompare(b.name);
-  });
+  const allWorkflows = workflowData?.workflows ?? [];
+  const recommendedNames = workflowData?.recommended ?? [];
+
+  // Recommended workflows pinned on top in declared order, then the rest by
+  // source/name. The picker draws a divider between the groups.
+  const { ordered: sortedWorkflows } = orderWithRecommended(allWorkflows, recommendedNames);
 
   // Default workflow: last-used if still valid, else first available.
   useEffect(() => {
@@ -284,7 +285,7 @@ export function DraftRunCard({ projectId, projectCwd }: DraftRunCardProps): Reac
         >
           +
         </span>
-        <span className="text-[12px] text-text-tertiary transition-colors group-hover:text-text-primary">
+        <span className="text-[14px] font-semibold text-text-secondary transition-colors group-hover:text-text-primary">
           Start a new run
         </span>
         <span
@@ -306,7 +307,7 @@ export function DraftRunCard({ projectId, projectCwd }: DraftRunCardProps): Reac
     >
       <span
         aria-hidden
-        className="brand-bar pointer-events-none absolute left-0 top-0 bottom-0 w-1 rounded-l"
+        className="brand-bar pointer-events-none absolute bottom-0 left-0 top-0 w-[3px] rounded-l-[12px]"
       />
       {dragOver ? (
         <div
@@ -328,6 +329,7 @@ export function DraftRunCard({ projectId, projectCwd }: DraftRunCardProps): Reac
           <span className="mx-1 h-3 w-px shrink-0 bg-border" aria-hidden />
           <WorkflowPicker
             workflows={sortedWorkflows}
+            recommendedNames={recommendedNames}
             value={workflowName}
             onChange={setWorkflowName}
             disabled={submitting}
@@ -369,7 +371,7 @@ export function DraftRunCard({ projectId, projectCwd }: DraftRunCardProps): Reac
             }
             rows={2}
             disabled={submitting}
-            className="min-h-[52px] w-full resize-none rounded border border-border bg-surface-inset px-3 py-2 text-[13px] text-text-primary placeholder:text-text-tertiary focus:border-border-bright focus:outline-none disabled:opacity-50"
+            className="min-h-[74px] w-full resize-none rounded-[10px] border border-border bg-surface px-3.5 py-[13px] text-[14px] leading-normal text-text-primary placeholder:text-text-tertiary focus:border-accent-bright/50 focus:outline-none focus:ring-[3px] focus:ring-accent-bright/10 disabled:opacity-50"
           />
 
           {files.length > 0 ? (
@@ -432,8 +434,25 @@ export function DraftRunCard({ projectId, projectCwd }: DraftRunCardProps): Reac
                   📎
                 </span>
               </button>
-              <span className="font-mono text-[10px] text-text-tertiary">
-                ↵ start · ⇧↵ newline · esc cancel
+              <span className="flex items-center gap-3.5 font-mono text-[11px] text-text-tertiary">
+                <span>
+                  <span className="rounded border border-border px-1.5 py-px text-text-secondary">
+                    ↵
+                  </span>{' '}
+                  start
+                </span>
+                <span>
+                  <span className="rounded border border-border px-1.5 py-px text-text-secondary">
+                    ⇧↵
+                  </span>{' '}
+                  newline
+                </span>
+                <span>
+                  <span className="rounded border border-border px-1.5 py-px text-text-secondary">
+                    esc
+                  </span>{' '}
+                  cancel
+                </span>
               </span>
             </div>
             <button
@@ -443,8 +462,8 @@ export function DraftRunCard({ projectId, projectCwd }: DraftRunCardProps): Reac
               className="brand-bar flex items-center gap-1 border-[3px] border-black px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#333333] disabled:opacity-50"
             >
               {submitting ? 'Starting…' : 'Start run'}
-              <span aria-hidden className="font-mono text-[10px] opacity-70">
-                ↵
+              <span aria-hidden className="text-[10px] leading-none opacity-80">
+                ▶
               </span>
             </button>
           </div>

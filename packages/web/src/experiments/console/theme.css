@@ -54,6 +54,13 @@
   --brand-gradient: linear-gradient(180deg, #000000 0%, #000000 100%);
   --brand-gradient-soft: rgb(0 0 0 / 0.04);
 
+  /* Node variant stripes — the builder renders all seven variants. The first
+     five tokens (--node-command/-prompt/-bash/-loop/-approval) inherit from
+     the production :root in index.css; script and cancel exist only here
+     (console-scoped) until the production palette needs them. */
+  --node-script: oklch(0.7 0.14 140);
+  --node-cancel: oklch(0.62 0.19 10);
+
   /* shadcn-compatible overrides */
   --background: #ffffff;
   --foreground: #000000;

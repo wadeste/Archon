@@ -4,6 +4,8 @@ import type {
   WorkflowStatusEvent,
   DagNodeEvent,
   WorkflowToolActivityEvent,
+  WorkflowTaskActivityEvent,
+  WorkflowHookActivityEvent,
   LoopIterationEvent,
 } from '@/lib/types';
 
@@ -36,6 +38,12 @@ export function useDashboardSSE(): void {
           break;
         case 'workflow_step':
           workflowSSEHandlers.onLoopIteration(event as LoopIterationEvent);
+          break;
+        case 'workflow_task_activity':
+          workflowSSEHandlers.onTaskActivity(event as WorkflowTaskActivityEvent);
+          break;
+        case 'workflow_hook_activity':
+          workflowSSEHandlers.onHookActivity(event as WorkflowHookActivityEvent);
           break;
         // heartbeat — ignore
       }

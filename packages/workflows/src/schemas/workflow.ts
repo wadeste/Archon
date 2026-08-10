@@ -8,7 +8,10 @@ import {
   effortLevelSchema,
   thinkingConfigSchema,
   sandboxSettingsSchema,
+  betasSchema,
+  KNOWN_DAG_NODE_KEYS,
 } from './dag-node';
+import type { NestedKeySpec } from './dag-node';
 
 // ---------------------------------------------------------------------------
 // Shared enum schemas
@@ -19,6 +22,15 @@ export const modelReasoningEffortSchema = z.enum(['minimal', 'low', 'medium', 'h
 export type ModelReasoningEffort = z.infer<typeof modelReasoningEffortSchema>;
 
 export const webSearchModeSchema = z.enum(['disabled', 'cached', 'live']);
+
+/**
+ * External capabilities a workflow declares it needs. Today only `github`
+ * (the originating user must have connected their GitHub identity); the array
+ * shape leaves room for `gitea`/`gitlab` etc. without a schema change.
+ */
+export const workflowRequirementSchema = z.enum(['github']);
+
+export type WorkflowRequirement = z.infer<typeof workflowRequirementSchema>;
 
 export type WebSearchMode = z.infer<typeof webSearchModeSchema>;
 
@@ -49,6 +61,59 @@ export const workflowWorktreePolicySchema = z.object({
 
 export type WorkflowWorktreePolicy = z.infer<typeof workflowWorktreePolicySchema>;
 
+/**
+ * Per-workflow container-backend policy (FOLDER projects only). Mirrors the
+ * worktree policy: a narrow per-workflow toggle; the runner image / caps live in
+ * repo/global `.archon/config.yaml > container` because they are install-wide.
+ *
+ * Selection precedence: CLI `--container` flag > this `container.enabled` >
+ * config `container.enabled` default (false). `container.write_back` chooses how
+ * the finished run's overlay diff reaches the live root (gated vs auto).
+ */
+export const workflowContainerPolicySchema = z.object({
+  /**
+   * Pin the container backend on for this folder-project workflow without the
+   * `--container` flag. Precedence is `--container flag ?? this ?? config ?? false`:
+   * `true` enables it (unless already forced by the flag); OMITTED defers to the
+   * config default; `false` HARD-disables it relative to config (the config
+   * default is not consulted), though an explicit `--container` flag still wins.
+   */
+  enabled: z.boolean().optional(),
+  /**
+   * How a finished container run's overlay changes reach the live folder root:
+   *  - `approve` (default) — pause at an engine-level write-back gate presenting
+   *    the change summary; the run applies to the live root only on approval and
+   *    discards on rejection.
+   *  - `auto` — apply the overlay diff to the live root without pausing (logged).
+   *    For unattended workflows that accept ungated write-back.
+   * Only consulted for container runs; a no-op for in-place / worktree runs.
+   */
+  write_back: z.enum(['approve', 'auto']).optional(),
+});
+
+export type WorkflowContainerPolicy = z.infer<typeof workflowContainerPolicySchema>;
+
+// ---------------------------------------------------------------------------
+// Workflow-level evidence policy (#2230)
+// ---------------------------------------------------------------------------
+
+/**
+ * Terminal-success evidence gate. When `required: true`, the DAG executor
+ * refuses to flip the run to `completed` unless `$ARTIFACTS_DIR/evidence.json`
+ * exists — a missing file marks the run `failed` with a structured note at
+ * `metadata.evidence_validation`. The engine gates ONLY on file presence:
+ * producing (and validating the content of) the evidence belongs to the
+ * workflow's own bash/script nodes (constitution: code computes, YAML
+ * coordinates). Deliberately narrow — no schema validation, no content checks,
+ * no configurable path (deferred until the gate sees adoption; see #2230).
+ */
+export const workflowEvidencePolicySchema = z.object({
+  /** Refuse terminal `completed` unless `$ARTIFACTS_DIR/evidence.json` exists. */
+  required: z.boolean(),
+});
+
+export type WorkflowEvidencePolicy = z.infer<typeof workflowEvidencePolicySchema>;
+
 // ---------------------------------------------------------------------------
 // WorkflowBase — common fields shared by all workflow types
 // ---------------------------------------------------------------------------
@@ -60,7 +125,6 @@ export const workflowBaseSchema = z.object({
   model: z.string().optional(),
   modelReasoningEffort: modelReasoningEffortSchema.optional(),
   webSearchMode: webSearchModeSchema.optional(),
-  additionalDirectories: z.array(z.string()).optional(),
   interactive: z.boolean().optional(),
   effort: effortLevelSchema.optional(),
   thinking: thinkingConfigSchema.optional(),
@@ -73,9 +137,11 @@ export const workflowBaseSchema = z.object({
    * by OMP preflight when `provider === 'omp'`.
    */
   on_failure_model: z.string().min(1).optional(),
-  betas: z.array(z.string().min(1)).nonempty("'betas' must be a non-empty array").optional(),
+  betas: betasSchema.optional(),
   sandbox: sandboxSettingsSchema.optional(),
   worktree: workflowWorktreePolicySchema.optional(),
+  container: workflowContainerPolicySchema.optional(),
+  evidence_policy: workflowEvidencePolicySchema.optional(),
   /**
    * When `false`, the engine skips the path-exclusive lock for this workflow,
    * allowing N concurrent runs on the same live checkout. The author asserts
@@ -83,7 +149,20 @@ export const workflowBaseSchema = z.object({
    * Defaults to `true` (safe: serialize runs on the same path).
    */
   mutates_checkout: z.boolean().optional(),
+  /**
+   * Default for `persist_session` on every AI node in this workflow.
+   * Individual nodes can override with `persist_session: false`.
+   * Requires the resolved provider to declare `sessionResume: true`.
+   */
+  persist_sessions: z.boolean().optional(),
   tags: z.array(z.string().min(1)).optional(),
+  /**
+   * External capabilities this workflow needs. When it includes `github`, the
+   * run is hard-blocked at invocation (before any worktree/clone/AI cost) if
+   * the originating user has not connected their GitHub identity. Only enforced
+   * when per-user GitHub is enabled; a no-op for solo PAT installs.
+   */
+  requires: z.array(workflowRequirementSchema).optional(),
 });
 
 export type WorkflowBase = z.infer<typeof workflowBaseSchema>;
@@ -102,6 +181,58 @@ export const workflowDefinitionSchema = workflowBaseSchema.extend({
 
 /** Workflow definition with fully typed nodes (DagNode[]) derived from the schema. */
 export type WorkflowDefinition = z.infer<typeof workflowDefinitionSchema> & { prompt?: never };
+
+// ---------------------------------------------------------------------------
+// Known workflow keys — used by the loader to detect unknown/misplaced keys
+// ---------------------------------------------------------------------------
+
+/**
+ * All keys accepted at the workflow level.
+ * Derived from workflowDefinitionSchema shape — no hand-maintained list needed.
+ * Used by parseWorkflow to warn on unknown keys (#2213).
+ */
+export const KNOWN_WORKFLOW_KEYS: ReadonlySet<string> = new Set(
+  Object.keys(workflowDefinitionSchema.shape)
+);
+
+/**
+ * Workflow-only keys that are not valid on individual nodes. Used to produce a
+ * precise hint when a workflow-level key is misplaced on a node (#2213).
+ * Computed as the difference between workflow keys and node keys.
+ */
+export const WORKFLOW_ONLY_KEYS: ReadonlySet<string> = new Set(
+  [...KNOWN_WORKFLOW_KEYS].filter(k => !KNOWN_DAG_NODE_KEYS.has(k))
+);
+
+/**
+ * Known keys for the nested config objects a workflow can carry, keyed by the
+ * workflow-level field that holds them. Same purpose and same derivation as
+ * KNOWN_NODE_NESTED_KEYS — an unknown key one level down is stripped just as
+ * silently as one at the top (#2213).
+ *
+ * `sandbox` (`.passthrough()`) and `thinking` (`z.preprocess`) are omitted for
+ * the same reasons they are omitted at node level. `nodes` is handled by the
+ * per-node check, not here.
+ *
+ * Constructed with `keyof typeof workflowDefinitionSchema.shape` as the key type
+ * so a typo'd registration fails to compile rather than silently disabling the
+ * check; the exported type widens back to `string` for lookup (same split as
+ * KNOWN_NODE_NESTED_KEYS).
+ */
+export const KNOWN_WORKFLOW_NESTED_KEYS: ReadonlyMap<string, NestedKeySpec> = new Map<
+  keyof typeof workflowDefinitionSchema.shape,
+  NestedKeySpec
+>([
+  ['worktree', { kind: 'object', keys: new Set(Object.keys(workflowWorktreePolicySchema.shape)) }],
+  [
+    'container',
+    { kind: 'object', keys: new Set(Object.keys(workflowContainerPolicySchema.shape)) },
+  ],
+  [
+    'evidence_policy',
+    { kind: 'object', keys: new Set(Object.keys(workflowEvidencePolicySchema.shape)) },
+  ],
+]);
 
 // ---------------------------------------------------------------------------
 // LoadCommandResult — discriminated union for command load outcomes
@@ -150,6 +281,8 @@ export type WorkflowSource = 'bundled' | 'global' | 'project';
 export interface WorkflowWithSource {
   readonly workflow: WorkflowDefinition;
   readonly source: WorkflowSource;
+  /** Warnings from YAML parsing (e.g. unknown keys) — never hard-fails. */
+  readonly parseWarnings?: readonly string[];
 }
 
 /**

@@ -125,5 +125,4 @@ nodes:
     depends_on: [render-video]
     allowed_tools:
       - Read
-provider: claude
-model: MiniMax-M2.7
+    model: small

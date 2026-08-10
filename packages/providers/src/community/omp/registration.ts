@@ -17,5 +17,8 @@ export function registerOmpProvider(): void {
     factory: () => new OmpProvider(),
     capabilities: OMP_CAPABILITIES,
     builtIn: false,
+    // OMP owns its own auth store (~/.omp) and env-var table — Archon does not
+    // deliver credentials to it, so the managed-credential catalog is empty.
+    credentials: { kind: 'static', specs: [] },
   });
 }

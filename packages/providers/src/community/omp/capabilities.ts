@@ -14,11 +14,14 @@ export const OMP_CAPABILITIES: ProviderCapabilities = {
   skills: true,
   agents: false,
   toolRestrictions: true,
-  structuredOutput: true,
+  structuredOutput: 'best-effort', // prompt-augment + repair + validate + reask (no SDK grammar)
   envInjection: true,
   costControl: false,
   effortControl: true,
   thinkingControl: true,
   fallbackModel: false,
   sandbox: false,
+  settingSources: false, // Claude Agent SDK-only knob (which setting sources the agent loads)
+  nativeTools: false, // no OMP native-tool bridge yet (fail-fast source of truth)
+  containerExec: false, // no in-container spawn path yet (fail-fast source of truth)
 };

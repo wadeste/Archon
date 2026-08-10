@@ -1,12 +1,15 @@
 import { useMemo, useState, type ReactElement } from 'react';
-import { Routes, Route, Link, useNavigate } from 'react-router';
+import { Routes, Route, useNavigate, Link } from 'react-router';
 import { ProjectRail } from './components/ProjectRail';
 import { AddProjectDialog } from './components/AddProjectDialog';
 import { ProjectPalette } from './components/ProjectPalette';
 import { KeymapHelp } from './components/KeymapHelp';
+import { BuilderConnected } from './builder/BuilderConnected';
 import { RunsPage } from './routes/RunsPage';
 import { RunDetailPage } from './routes/RunDetailPage';
+import { ChatPage } from './routes/ChatPage';
 import { PreviewPage } from './routes/PreviewPage';
+import { SettingsPage } from './routes/SettingsPage';
 import { invalidate } from './store/cache';
 import { K } from './store/keys';
 import { useKeymap, type Binding } from './lib/keymap';
@@ -44,8 +47,15 @@ export function ConsoleApp(): ReactElement {
           setHelpOpen(v => !v);
         },
       },
+      {
+        keys: [','],
+        label: 'Open settings',
+        run: (): void => {
+          navigate('/console/settings');
+        },
+      },
     ],
-    []
+    [navigate]
   );
   useKeymap({
     bindings: globalBindings,
@@ -87,8 +97,12 @@ export function ConsoleApp(): ReactElement {
         <main className="flex min-w-0 flex-1 flex-col">
           <Routes>
             <Route index element={<RunsPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="builder" element={<BuilderConnected />} />
+            <Route path="builder/:name" element={<BuilderConnected />} />
             <Route path="_preview" element={<PreviewPage />} />
             <Route path="p/:projectId" element={<RunsPage />} />
+            <Route path="p/:projectId/chat" element={<ChatPage />} />
             <Route path="p/:projectId/r/:runId" element={<RunDetailPage />} />
           </Routes>
         </main>

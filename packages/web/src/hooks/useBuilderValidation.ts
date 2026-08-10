@@ -67,7 +67,7 @@ function getInstantIssues(
       });
     }
     if (node.data.nodeType === 'loop') {
-      if (!node.data.loop?.prompt.trim()) {
+      if (!node.data.loop?.prompt?.trim()) {
         issues.push({
           severity: 'error',
           message: `Node "${node.data.id}": loop prompt cannot be empty`,
