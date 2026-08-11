@@ -184,6 +184,10 @@ export const dagNodeBaseSchema = z.object({
   provider: z.string().trim().min(1).optional(),
   context: z.enum(['fresh', 'shared']).optional(),
   output_format: z.record(z.string(), z.unknown()).optional(),
+  /** Provider-specific passthrough config (e.g. the pydantic provider's
+   *  batch/context_artifacts settings). Forwarded verbatim into
+   *  nodeConfig.provider_options by the dag-executor; core never reads it. */
+  provider_options: z.record(z.string(), z.unknown()).optional(),
   allowed_tools: z.array(z.string()).optional(),
   denied_tools: z.array(z.string()).optional(),
   idle_timeout: z.number().optional(),
@@ -601,6 +605,7 @@ export const BASH_NODE_AI_FIELDS: readonly string[] = [
   'model',
   'context',
   'output_format',
+  'provider_options',
   'allowed_tools',
   'denied_tools',
   'hooks',
@@ -1062,6 +1067,7 @@ export const dagNodeSchema = dagNodeFlatSchema
       ...(data.provider !== undefined ? { provider: data.provider } : {}),
       ...(data.context !== undefined ? { context: data.context } : {}),
       ...(data.output_format !== undefined ? { output_format: data.output_format } : {}),
+      ...(data.provider_options !== undefined ? { provider_options: data.provider_options } : {}),
       ...(data.allowed_tools !== undefined ? { allowed_tools: data.allowed_tools } : {}),
       ...(data.denied_tools !== undefined ? { denied_tools: data.denied_tools } : {}),
       ...(data.hooks !== undefined ? { hooks: data.hooks } : {}),

@@ -232,7 +232,14 @@ function extractResetTime(text: string): string | null {
  * to resume when credits refill).
  */
 export function detectCreditExhaustion(text: string): string | null {
-  const lower = text.toLowerCase();
+  // Envelope guard (kairon-lite 71b65b08, 2026-07-22): a genuine SDK billing or
+  // limit turn IS the whole, short message — not a phrase buried in node
+  // work-product. Fetched/triaged CONTENT quoting billing phrases (r/Anthropic
+  // "Credit balance too low" posts) must not trip the substring match. Real
+  // messages are ~100-300 chars; triage outputs run to many KB.
+  const trimmed = text.trim();
+  if (trimmed.length > 600) return null;
+  const lower = trimmed.toLowerCase();
 
   if (SESSION_LIMIT_OUTPUT_PATTERNS.some(p => lower.includes(p))) {
     const resetTime = extractResetTime(text);

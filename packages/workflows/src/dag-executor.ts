@@ -1146,6 +1146,10 @@ async function resolveNodeProviderAndModel(
     systemPrompt: node.systemPrompt,
     fallbackModel: fb,
     settingSources: node.settingSources,
+    // Provider-specific passthrough config (e.g. the pydantic provider's
+    // batch settings) — a declared dag-node field (schemas/dag-node.ts);
+    // the executor forwards it verbatim, core never interprets it.
+    provider_options: (node as unknown as Record<string, unknown>).provider_options,
   };
 
   // Pass assistantConfig from config — provider parses internally
@@ -1463,6 +1467,9 @@ async function executeNodeInternal(
   const shouldForkSession = resumeSessionId !== undefined;
   const nodeOptionsWithAbort: SendQueryOptions | undefined = {
     ...nodeOptions,
+    // artifactsDir travels in nodeConfig for providers that materialize files
+    // (pydantic batch/context_artifacts) — kairon-lite d89d3866.
+    nodeConfig: { ...(nodeOptions?.nodeConfig ?? {}), artifactsDir },
     abortSignal: nodeAbortController.signal,
     ...(shouldForkSession ? { forkSession: true } : {}),
   };
@@ -2275,7 +2282,10 @@ async function executeNodeInternal(
     }
 
     // Detect credit exhaustion: SDK returns it as assistant text, not a thrown error.
-    const creditError = detectCreditExhaustion(nodeOutputText);
+    // Skip the pydantic provider: its nodes stream arbitrary fetched web content
+    // which regularly quotes billing phrases (kairon-lite 71b65b08).
+    const creditError =
+      provider === 'pydantic' ? null : detectCreditExhaustion(nodeOutputText);
 
     if (creditError) {
       const duration = Date.now() - nodeStartTime;

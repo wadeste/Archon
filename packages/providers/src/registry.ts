@@ -21,6 +21,7 @@ import { registerCopilotProvider } from './community/copilot/registration';
 import { registerOpencodeProvider } from './community/opencode/registration';
 import { registerOmpProvider } from './community/omp/registration';
 import { registerPiProvider } from './community/pi/registration';
+import { registerPydanticProvider } from './community/pydantic/registration';
 import { UnknownProviderError } from './errors';
 import { createLogger } from '@archon/paths';
 
@@ -181,6 +182,7 @@ export function registerCommunityProviders(): void {
   registerPiProvider();
   registerCopilotProvider();
   registerOmpProvider();
+  registerPydanticProvider();
 }
 
 /** @internal Test-only — clears the registry. Not for production use. */
